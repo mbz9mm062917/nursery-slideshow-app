@@ -11,4 +11,9 @@ export const videoJobApi = {
     const response = await httpClient.get<VideoJob>(`/api/video-jobs/${jobId}`)
     return response.data
   },
+
+  async getLatest(projectId: string): Promise<VideoJob> {
+    const response = await httpClient.get<VideoJob>(`/api/projects/${projectId}/video-jobs/latest`)
+    return response.data
+  },
 }

@@ -33,7 +33,7 @@ public class VideoJobController {
 
     @GetMapping("/api/projects/{projectId}/video-jobs/latest")
     public VideoJobResponse getLatest(@PathVariable String projectId) {
-        return videoJobService.getLatestCompleted(projectId);
+        return videoJobService.getLatest(projectId);
     }
 
     @GetMapping("/api/video-jobs/{jobId}/download")

@@ -20,5 +20,10 @@ export const useVideoJobStore = defineStore('videoJob', {
       this.current = job
       return job
     },
+    async restoreLatest(projectId: string): Promise<VideoJob> {
+      const job = await videoJobApi.getLatest(projectId)
+      this.current = job
+      return job
+    },
   },
 })

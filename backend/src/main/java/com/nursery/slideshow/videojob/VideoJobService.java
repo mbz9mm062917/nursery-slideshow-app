@@ -69,10 +69,10 @@ public class VideoJobService {
     }
 
     @Transactional(readOnly = true)
-    public VideoJobResponse getLatestCompleted(String projectId) {
+    public VideoJobResponse getLatest(String projectId) {
         VideoJob job = videoJobRepository
-                .findTopByProjectIdAndStatusOrderByCompletedAtDesc(projectId, VideoJobStatus.COMPLETED)
-                .orElseThrow(() -> new ResourceNotFoundException("まだ動画が生成されていません"));
+                .findTopByProjectIdOrderByRequestedAtDesc(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("動画生成ジョブが見つかりません。"));
         return toResponse(job);
     }
 

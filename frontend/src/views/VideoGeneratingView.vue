@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ErrorBanner from '../components/common/ErrorBanner.vue'
 import { useVideoJobStore } from '../stores/videoJobStore'
+import { extractErrorMessage } from '../utils/errorMessage'
 
 const props = defineProps<{ projectId: string }>()
 const router = useRouter()
@@ -43,10 +44,14 @@ function handleRetry() {
   router.push({ name: 'preview', params: { projectId: props.projectId } })
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (!videoJobStore.current) {
-    errorMessage.value = '生成中のジョブが見つかりません。プレビュー画面からやり直してください。'
-    return
+    try {
+      await videoJobStore.restoreLatest(props.projectId)
+    } catch (error) {
+      errorMessage.value = extractErrorMessage(error, '動画生成ジョブが見つかりません。')
+      return
+    }
   }
   poll()
   pollTimer = setInterval(poll, 2000)
