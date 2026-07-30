@@ -12,6 +12,7 @@ const projectStore = useProjectStore()
 
 const title = ref('')
 const errorMessage = ref('')
+const isSubmitting = ref(false)
 const TITLE_MAX_LENGTH = 50
 
 onMounted(async () => {
@@ -20,12 +21,18 @@ onMounted(async () => {
 })
 
 async function handleNext() {
+  if (isSubmitting.value) {
+    return
+  }
+  isSubmitting.value = true
   errorMessage.value = ''
   try {
     await projectStore.patchProject(props.projectId, { title: title.value })
     router.push({ name: 'theme-select', params: { projectId: props.projectId } })
   } catch (error) {
     errorMessage.value = extractErrorMessage(error, 'タイトルの保存に失敗しました')
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -39,7 +46,7 @@ function handleBack() {
     :step="3"
     :total-steps="7"
     title="タイトルを入力"
-    :next-disabled="!title.trim()"
+    :next-disabled="!title.trim() || isSubmitting"
     @back="handleBack"
     @next="handleNext"
   >

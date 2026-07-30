@@ -13,6 +13,7 @@ const projectStore = useProjectStore()
 const DURATION_OPTIONS = [3, 5, 7] as const
 const selectedDuration = ref<number | null>(null)
 const errorMessage = ref('')
+const isSubmitting = ref(false)
 
 const canGoNext = computed(() => selectedDuration.value !== null)
 
@@ -22,15 +23,18 @@ onMounted(async () => {
 })
 
 async function handleNext() {
-  if (selectedDuration.value === null) {
+  if (selectedDuration.value === null || isSubmitting.value) {
     return
   }
+  isSubmitting.value = true
   errorMessage.value = ''
   try {
     await projectStore.patchProject(props.projectId, { slideDurationSec: selectedDuration.value })
     router.push({ name: 'preview', params: { projectId: props.projectId } })
   } catch (error) {
     errorMessage.value = extractErrorMessage(error, '保存に失敗しました')
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -44,7 +48,7 @@ function handleBack() {
     :step="6"
     :total-steps="7"
     title="スライドの表示時間"
-    :next-disabled="!canGoNext"
+    :next-disabled="!canGoNext || isSubmitting"
     @back="handleBack"
     @next="handleNext"
   >

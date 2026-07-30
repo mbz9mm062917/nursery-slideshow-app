@@ -16,6 +16,7 @@ const projectStore = useProjectStore()
 const themes = ref<Theme[]>([])
 const selectedCode = ref<string | null>(null)
 const errorMessage = ref('')
+const isSubmitting = ref(false)
 
 const canGoNext = computed(() => selectedCode.value !== null)
 
@@ -29,15 +30,18 @@ onMounted(async () => {
 })
 
 async function handleNext() {
-  if (!selectedCode.value) {
+  if (!selectedCode.value || isSubmitting.value) {
     return
   }
+  isSubmitting.value = true
   errorMessage.value = ''
   try {
     await projectStore.patchProject(props.projectId, { themeCode: selectedCode.value })
     router.push({ name: 'bgm-select', params: { projectId: props.projectId } })
   } catch (error) {
     errorMessage.value = extractErrorMessage(error, 'テーマの保存に失敗しました')
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -51,7 +55,7 @@ function handleBack() {
     :step="4"
     :total-steps="7"
     title="テーマを選択"
-    :next-disabled="!canGoNext"
+    :next-disabled="!canGoNext || isSubmitting"
     @back="handleBack"
     @next="handleNext"
   >
