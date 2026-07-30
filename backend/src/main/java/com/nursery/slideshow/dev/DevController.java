@@ -2,6 +2,7 @@ package com.nursery.slideshow.dev;
 
 import com.nursery.slideshow.bgm.Bgm;
 import com.nursery.slideshow.bgm.BgmRepository;
+import com.nursery.slideshow.common.TempDirectoryCleanup;
 import com.nursery.slideshow.common.exception.ResourceNotFoundException;
 import com.nursery.slideshow.common.storage.StorageService;
 import com.nursery.slideshow.photo.Photo;
@@ -13,7 +14,7 @@ import com.nursery.slideshow.videojob.ffmpeg.SlideshowVideoBuilder;
 import com.nursery.slideshow.videojob.theme.ThemeRenderer;
 import com.nursery.slideshow.videojob.theme.ThemeRendererResolver;
 import org.springframework.context.annotation.Profile;
-import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -63,17 +64,22 @@ public class DevController {
     @GetMapping(value = "/api/dev/ffmpeg-test-video", produces = "video/mp4")
     public ResponseEntity<Resource> ffmpegTestVideo() throws IOException {
         Path workDir = Files.createTempDirectory("ffmpeg-dev-test");
-        Path imagePath = workDir.resolve("test-image.png");
-        Path outputPath = workDir.resolve("test-video.mp4");
+        try {
+            Path imagePath = workDir.resolve("test-image.png");
+            Path outputPath = workDir.resolve("test-video.mp4");
 
-        ffmpegExecutor.run(List.of(
-                "-y", "-f", "lavfi", "-i", "testsrc=size=640x480:rate=1",
-                "-frames:v", "1", imagePath.toString()));
+            ffmpegExecutor.run(List.of(
+                    "-y", "-f", "lavfi", "-i", "testsrc=size=640x480:rate=1",
+                    "-frames:v", "1", imagePath.toString()));
 
-        slideshowVideoBuilder.generateSingleImageVideo(
-                imagePath, outputPath, 5, null, themeRendererResolver.resolve("simple"), null);
+            slideshowVideoBuilder.generateSingleImageVideo(
+                    imagePath, outputPath, 5, null, themeRendererResolver.resolve("simple"), null);
 
-        return ResponseEntity.ok().contentType(MediaType.valueOf("video/mp4")).body(new FileSystemResource(outputPath));
+            byte[] videoBytes = Files.readAllBytes(outputPath);
+            return ResponseEntity.ok().contentType(MediaType.valueOf("video/mp4")).body(new ByteArrayResource(videoBytes));
+        } finally {
+            TempDirectoryCleanup.deleteQuietly(workDir);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -102,10 +108,16 @@ public class DevController {
         String themeCode = project.getTheme() != null ? project.getTheme().getCode() : "simple";
         ThemeRenderer theme = themeRendererResolver.resolve(themeCode);
 
-        Path outputPath = Files.createTempDirectory("ffmpeg-dev-slideshow").resolve("slideshow.mp4");
-        slideshowVideoBuilder.generateSlideshowVideo(
-                imagePaths, outputPath, slideDurationSec, bgmPath, theme, project.getTitle());
+        Path workDir = Files.createTempDirectory("ffmpeg-dev-slideshow");
+        try {
+            Path outputPath = workDir.resolve("slideshow.mp4");
+            slideshowVideoBuilder.generateSlideshowVideo(
+                    imagePaths, outputPath, slideDurationSec, bgmPath, theme, project.getTitle());
 
-        return ResponseEntity.ok().contentType(MediaType.valueOf("video/mp4")).body(new FileSystemResource(outputPath));
+            byte[] videoBytes = Files.readAllBytes(outputPath);
+            return ResponseEntity.ok().contentType(MediaType.valueOf("video/mp4")).body(new ByteArrayResource(videoBytes));
+        } finally {
+            TempDirectoryCleanup.deleteQuietly(workDir);
+        }
     }
 }

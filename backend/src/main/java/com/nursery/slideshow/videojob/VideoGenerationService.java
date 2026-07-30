@@ -1,5 +1,6 @@
 package com.nursery.slideshow.videojob;
 
+import com.nursery.slideshow.common.TempDirectoryCleanup;
 import com.nursery.slideshow.common.storage.StorageService;
 import com.nursery.slideshow.videojob.ffmpeg.SlideshowVideoBuilder;
 import com.nursery.slideshow.videojob.theme.ThemeRenderer;
@@ -42,6 +43,7 @@ public class VideoGenerationService {
     }
 
     private void generate(Long jobId) {
+        Path workDir = null;
         try {
             videoJobService.markProcessing(jobId);
 
@@ -54,7 +56,8 @@ public class VideoGenerationService {
                     : null;
             ThemeRenderer theme = themeRendererResolver.resolve(input.themeCode());
 
-            Path outputPath = Files.createTempDirectory("video-job-" + jobId).resolve("output.mp4");
+            workDir = Files.createTempDirectory("video-job-" + jobId);
+            Path outputPath = workDir.resolve("output.mp4");
             slideshowVideoBuilder.generateSlideshowVideo(
                     imagePaths, outputPath, input.slideDurationSec(), bgmPath, theme, input.title());
 
@@ -71,6 +74,8 @@ public class VideoGenerationService {
         } catch (RuntimeException e) {
             log.error("Video generation failed for job {}", jobId, e);
             videoJobService.markFailed(jobId, "動画の生成に失敗しました。もう一度お試しください。");
+        } finally {
+            TempDirectoryCleanup.deleteQuietly(workDir);
         }
     }
 }
