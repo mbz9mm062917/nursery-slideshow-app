@@ -1,0 +1,12 @@
+build/
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+
+# ユーザーがアップロードした写真・生成された動画は実行時データのため管理しない。
+# storage/bgms/ 等のシード音源(Flywayのseedデータが参照する)は追跡対象として残す。
+storage/projects/
+storage/videos/
+
+*.log
+.idea/
+*.iml
