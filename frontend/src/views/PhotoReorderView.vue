@@ -6,6 +6,7 @@ import ErrorBanner from '../components/common/ErrorBanner.vue'
 import PhotoSorter from '../components/wizard/PhotoSorter.vue'
 import { photoApi } from '../api/photoApi'
 import type { Photo } from '../types/photo'
+import { WIZARD_TOTAL_STEPS } from '../constants/wizard'
 
 const props = defineProps<{ projectId: string }>()
 const router = useRouter()
@@ -41,7 +42,7 @@ onMounted(loadPhotos)
 <template>
   <WizardLayout
     :step="2"
-    :total-steps="7"
+    :total-steps="WIZARD_TOTAL_STEPS"
     title="写真を並び替え"
     :next-disabled="!canGoNext"
     @back="handleBack"

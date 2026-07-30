@@ -11,6 +11,7 @@ import { resolveApiUrl } from '../utils/resolveApiUrl'
 import { useProjectStore } from '../stores/projectStore'
 import { useVideoJobStore } from '../stores/videoJobStore'
 import type { Photo } from '../types/photo'
+import { WIZARD_TOTAL_STEPS } from '../constants/wizard'
 
 const props = defineProps<{ projectId: string }>()
 const router = useRouter()
@@ -59,7 +60,7 @@ function handleBack() {
 <template>
   <WizardLayout
     :step="7"
-    :total-steps="7"
+    :total-steps="WIZARD_TOTAL_STEPS"
     title="内容を確認"
     :next-disabled="isSubmitting"
     next-label="この内容で動画を作成する"

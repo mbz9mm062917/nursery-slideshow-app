@@ -7,6 +7,7 @@ import PhotoDropzone from '../components/wizard/PhotoDropzone.vue'
 import PhotoThumbnailGrid from '../components/wizard/PhotoThumbnailGrid.vue'
 import { photoApi } from '../api/photoApi'
 import type { Photo } from '../types/photo'
+import { WIZARD_TOTAL_STEPS } from '../constants/wizard'
 
 const props = defineProps<{ projectId: string }>()
 const router = useRouter()
@@ -69,7 +70,7 @@ onMounted(loadPhotos)
 <template>
   <WizardLayout
     :step="1"
-    :total-steps="7"
+    :total-steps="WIZARD_TOTAL_STEPS"
     title="写真をアップロード"
     :next-disabled="!canGoNext"
     @back="handleBack"

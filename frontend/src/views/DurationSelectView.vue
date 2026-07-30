@@ -5,6 +5,7 @@ import WizardLayout from '../components/common/WizardLayout.vue'
 import ErrorBanner from '../components/common/ErrorBanner.vue'
 import { extractErrorMessage } from '../utils/errorMessage'
 import { useProjectStore } from '../stores/projectStore'
+import { WIZARD_TOTAL_STEPS } from '../constants/wizard'
 
 const props = defineProps<{ projectId: string }>()
 const router = useRouter()
@@ -46,7 +47,7 @@ function handleBack() {
 <template>
   <WizardLayout
     :step="6"
-    :total-steps="7"
+    :total-steps="WIZARD_TOTAL_STEPS"
     title="スライドの表示時間"
     :next-disabled="!canGoNext || isSubmitting"
     @back="handleBack"
