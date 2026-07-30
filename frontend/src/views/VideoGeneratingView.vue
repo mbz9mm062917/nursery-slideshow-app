@@ -4,40 +4,64 @@ import { useRouter } from 'vue-router'
 import ErrorBanner from '../components/common/ErrorBanner.vue'
 import { useVideoJobStore } from '../stores/videoJobStore'
 import { extractErrorMessage } from '../utils/errorMessage'
+import type { VideoJob } from '../types/videoJob'
+
+const POLL_INTERVAL_MS = 2000
 
 const props = defineProps<{ projectId: string }>()
 const router = useRouter()
 const videoJobStore = useVideoJobStore()
 
 const errorMessage = ref('')
-let pollTimer: ReturnType<typeof setInterval> | null = null
+let pollTimeoutId: ReturnType<typeof setTimeout> | null = null
+let isPollingStopped = false
 
 function stopPolling() {
-  if (pollTimer !== null) {
-    clearInterval(pollTimer)
-    pollTimer = null
+  isPollingStopped = true
+  if (pollTimeoutId !== null) {
+    clearTimeout(pollTimeoutId)
+    pollTimeoutId = null
   }
 }
 
 async function poll() {
+  let job: VideoJob | null
   try {
-    const job = await videoJobStore.refreshStatus()
-    if (!job) {
-      errorMessage.value = '生成中のジョブが見つかりません。プレビュー画面からやり直してください。'
-      stopPolling()
+    job = await videoJobStore.refreshStatus()
+  } catch (error) {
+    if (isPollingStopped) {
       return
     }
-    if (job.status === 'COMPLETED') {
-      stopPolling()
-      router.push({ name: 'download', params: { projectId: props.projectId } })
-    } else if (job.status === 'FAILED') {
-      stopPolling()
-      errorMessage.value = job.errorMessage ?? '動画の生成に失敗しました'
-    }
-  } catch (error) {
     stopPolling()
     errorMessage.value = '状態の取得に失敗しました'
+    return
   }
+
+  // 画面離脱等でポーリングが停止済みの場合、遅れて届いたレスポンスは無視する
+  if (isPollingStopped) {
+    return
+  }
+
+  if (!job) {
+    errorMessage.value = '生成中のジョブが見つかりません。プレビュー画面からやり直してください。'
+    stopPolling()
+    return
+  }
+
+  if (job.status === 'COMPLETED') {
+    stopPolling()
+    router.push({ name: 'download', params: { projectId: props.projectId } })
+    return
+  }
+
+  if (job.status === 'FAILED') {
+    stopPolling()
+    errorMessage.value = job.errorMessage ?? '動画の生成に失敗しました'
+    return
+  }
+
+  // 前回のリクエストが完了してから次回ポーリングをスケジュールする(setIntervalによる多重実行を避ける)
+  pollTimeoutId = setTimeout(poll, POLL_INTERVAL_MS)
 }
 
 function handleRetry() {
@@ -54,7 +78,6 @@ onMounted(async () => {
     }
   }
   poll()
-  pollTimer = setInterval(poll, 2000)
 })
 
 onUnmounted(stopPolling)
