@@ -12,8 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -26,6 +28,11 @@ import java.util.stream.Collectors;
 public class PhotoService {
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png");
+
+    // JPEG: FF D8 FF / PNG: 89 50 4E 47 0D 0A 1A 0A
+    private static final byte[] JPEG_MAGIC_BYTES = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF};
+    private static final byte[] PNG_MAGIC_BYTES =
+            {(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
 
     private final PhotoRepository photoRepository;
     private final ProjectRepository projectRepository;
@@ -45,7 +52,7 @@ public class PhotoService {
         Project project = findProjectOrThrow(projectId);
 
         for (MultipartFile file : files) {
-            if (!hasAllowedExtension(file.getOriginalFilename())) {
+            if (!isValidImageFile(file)) {
                 throw new ValidationException(
                         "対応していない形式のファイルが含まれています（jpg, jpeg, pngのみ利用できます）: " + file.getOriginalFilename());
             }
@@ -121,16 +128,43 @@ public class PhotoService {
         }
     }
 
-    private boolean hasAllowedExtension(String fileName) {
-        if (fileName == null) {
+    private boolean isValidImageFile(MultipartFile file) {
+        String extension = extractExtension(file.getOriginalFilename());
+        if (!ALLOWED_EXTENSIONS.contains(extension)) {
             return false;
+        }
+        return hasMatchingMagicBytes(file, extension);
+    }
+
+    private String extractExtension(String fileName) {
+        if (fileName == null) {
+            return "";
         }
         int dotIndex = fileName.lastIndexOf('.');
         if (dotIndex < 0) {
+            return "";
+        }
+        return fileName.substring(dotIndex + 1).toLowerCase(Locale.ROOT);
+    }
+
+    private boolean hasMatchingMagicBytes(MultipartFile file, String extension) {
+        byte[] expectedMagicBytes = switch (extension) {
+            case "jpg", "jpeg" -> JPEG_MAGIC_BYTES;
+            case "png" -> PNG_MAGIC_BYTES;
+            default -> null;
+        };
+        if (expectedMagicBytes == null) {
             return false;
         }
-        String extension = fileName.substring(dotIndex + 1).toLowerCase(Locale.ROOT);
-        return ALLOWED_EXTENSIONS.contains(extension);
+        return Arrays.equals(readHeaderBytes(file, expectedMagicBytes.length), expectedMagicBytes);
+    }
+
+    private byte[] readHeaderBytes(MultipartFile file, int length) {
+        try (InputStream inputStream = file.getInputStream()) {
+            return inputStream.readNBytes(length);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private PhotoResponse toResponse(Photo photo) {
