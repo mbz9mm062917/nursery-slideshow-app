@@ -12,4 +12,5 @@ import org.springframework.stereotype.Component;
 public class FfmpegProperties {
     private String binaryPath = "ffmpeg";
     private String titleFontPath = "C:/Windows/Fonts/meiryo.ttc";
+    private long timeoutSeconds = 120;
 }

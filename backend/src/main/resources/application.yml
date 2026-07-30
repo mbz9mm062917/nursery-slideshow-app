@@ -25,3 +25,4 @@ app:
   ffmpeg:
     binary-path: ${FFMPEG_BINARY_PATH:ffmpeg}
     title-font-path: ${FFMPEG_TITLE_FONT_PATH:C:/Windows/Fonts/meiryo.ttc}
+    timeout-seconds: ${FFMPEG_TIMEOUT_SECONDS:120}
