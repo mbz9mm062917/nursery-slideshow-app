@@ -7,7 +7,7 @@ export const videoJobApi = {
     return response.data
   },
 
-  async getStatus(jobId: number): Promise<VideoJob> {
+  async getStatus(jobId: string): Promise<VideoJob> {
     const response = await httpClient.get<VideoJob>(`/api/video-jobs/${jobId}`)
     return response.data
   },

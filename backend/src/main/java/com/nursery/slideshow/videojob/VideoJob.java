@@ -17,6 +17,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -27,6 +28,9 @@ public class VideoJob {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "public_id", nullable = false, updatable = false, columnDefinition = "CHAR(36)")
+    private String publicId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id", nullable = false, columnDefinition = "CHAR(36)")
@@ -56,6 +60,7 @@ public class VideoJob {
 
     @PrePersist
     void onCreate() {
+        publicId = UUID.randomUUID().toString();
         requestedAt = LocalDateTime.now();
     }
 }

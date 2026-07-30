@@ -1,5 +1,5 @@
 export interface VideoJob {
-  jobId: number
+  jobId: string
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
   progress: number
   errorMessage: string | null

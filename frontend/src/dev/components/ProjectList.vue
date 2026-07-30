@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { projectApi } from '../../api/projectApi'
+import { devProjectApi } from '../api/devProjectApi'
 import ProjectEditForm from './ProjectEditForm.vue'
 import type { Project } from '../../types/project'
 
@@ -12,7 +12,7 @@ async function loadProjects() {
   isLoading.value = true
   errorMessage.value = ''
   try {
-    projects.value = await projectApi.list()
+    projects.value = await devProjectApi.list()
   } catch (error) {
     errorMessage.value = '一覧の取得に失敗しました'
   } finally {
@@ -25,7 +25,7 @@ async function handleDelete(projectId: string) {
     return
   }
   try {
-    await projectApi.remove(projectId)
+    await devProjectApi.remove(projectId)
     await loadProjects()
   } catch (error) {
     errorMessage.value = '削除に失敗しました'

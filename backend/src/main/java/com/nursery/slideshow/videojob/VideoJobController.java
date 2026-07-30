@@ -27,7 +27,7 @@ public class VideoJobController {
     }
 
     @GetMapping("/api/video-jobs/{jobId}")
-    public VideoJobResponse getStatus(@PathVariable Long jobId) {
+    public VideoJobResponse getStatus(@PathVariable String jobId) {
         return videoJobService.getStatus(jobId);
     }
 
@@ -37,7 +37,7 @@ public class VideoJobController {
     }
 
     @GetMapping("/api/video-jobs/{jobId}/download")
-    public ResponseEntity<Resource> download(@PathVariable Long jobId) {
+    public ResponseEntity<Resource> download(@PathVariable String jobId) {
         Resource resource = videoJobService.loadVideoFile(jobId);
         String fileName = "slideshow-" + jobId + ".mp4";
         return ResponseEntity.ok()

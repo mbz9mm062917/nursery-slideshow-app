@@ -64,8 +64,8 @@ public class VideoJobService {
     }
 
     @Transactional(readOnly = true)
-    public VideoJobResponse getStatus(Long jobId) {
-        return toResponse(findOrThrow(jobId));
+    public VideoJobResponse getStatus(String publicId) {
+        return toResponse(findByPublicIdOrThrow(publicId));
     }
 
     @Transactional(readOnly = true)
@@ -77,8 +77,8 @@ public class VideoJobService {
     }
 
     @Transactional(readOnly = true)
-    public Resource loadVideoFile(Long jobId) {
-        VideoJob job = findOrThrow(jobId);
+    public Resource loadVideoFile(String publicId) {
+        VideoJob job = findByPublicIdOrThrow(publicId);
         if (job.getStatus() != VideoJobStatus.COMPLETED || job.getOutputStorageKey() == null) {
             throw new ValidationException("動画がまだ完成していません");
         }
@@ -130,6 +130,11 @@ public class VideoJobService {
                 .orElseThrow(() -> new ResourceNotFoundException("指定された動画が見つかりません"));
     }
 
+    private VideoJob findByPublicIdOrThrow(String publicId) {
+        return videoJobRepository.findByPublicId(publicId)
+                .orElseThrow(() -> new ResourceNotFoundException("指定された動画が見つかりません"));
+    }
+
     private void validateReadyForGeneration(Project project) {
         long photoCount = photoRepository.countByProjectId(project.getId());
         boolean ready = project.getTitle() != null
@@ -144,10 +149,10 @@ public class VideoJobService {
 
     private VideoJobResponse toResponse(VideoJob job) {
         String downloadUrl = job.getStatus() == VideoJobStatus.COMPLETED
-                ? "/api/video-jobs/" + job.getId() + "/download"
+                ? "/api/video-jobs/" + job.getPublicId() + "/download"
                 : null;
         return new VideoJobResponse(
-                job.getId(),
+                job.getPublicId(),
                 job.getStatus().name(),
                 job.getProgress(),
                 job.getErrorMessage(),

@@ -12,6 +12,7 @@ import com.nursery.slideshow.videojob.ffmpeg.FfmpegExecutor;
 import com.nursery.slideshow.videojob.ffmpeg.SlideshowVideoBuilder;
 import com.nursery.slideshow.videojob.theme.ThemeRenderer;
 import com.nursery.slideshow.videojob.theme.ThemeRendererResolver;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
@@ -26,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+@Profile("dev")
 @RestController
 public class DevController {
 
