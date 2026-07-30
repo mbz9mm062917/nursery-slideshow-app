@@ -43,7 +43,7 @@ public class VideoJobService {
     }
 
     public VideoJobResponse startGeneration(String projectId) {
-        Project project = projectRepository.findById(projectId)
+        Project project = projectRepository.findByIdForUpdate(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("指定されたスライドショーが見つかりません"));
 
         validateReadyForGeneration(project);
