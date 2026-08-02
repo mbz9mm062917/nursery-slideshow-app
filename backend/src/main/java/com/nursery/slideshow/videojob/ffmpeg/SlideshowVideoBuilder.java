@@ -88,9 +88,16 @@ public class SlideshowVideoBuilder {
     }
 
     /**
-     * 1ページ(1カット)分の写真パスと、その並べ方パターン(null可、デフォルト配置を使う)。
+     * 1枚の写真のファイルパスと、そのトリミング形状コード
+     * ("RECTANGLE"/"ROUNDED"/"OVAL"、nullはRECTANGLE(トリミングなし)扱い)。
      */
-    public record SlideGroup(List<Path> photoPaths, String layoutPattern) {
+    public record PhotoTile(Path path, String cropShape) {
+    }
+
+    /**
+     * 1ページ(1カット)分の写真タイルと、その並べ方パターン(null可、デフォルト配置を使う)。
+     */
+    public record SlideGroup(List<PhotoTile> photos, String layoutPattern) {
     }
 
     /**
@@ -99,45 +106,51 @@ public class SlideshowVideoBuilder {
      */
     public void generateSlideshowVideo(List<SlideGroup> photoGroups, Path outputPath, int slideDurationSec,
                                         Path bgmPath, ThemeRenderer theme, String titleText) {
-        if (photoGroups.isEmpty() || photoGroups.stream().allMatch(g -> g.photoPaths().isEmpty())) {
+        if (photoGroups.isEmpty() || photoGroups.stream().allMatch(g -> g.photos().isEmpty())) {
             throw new VideoGenerationException("動画生成には1枚以上の写真が必要です");
         }
 
-        List<Path> flatImagePaths = photoGroups.stream().flatMap(g -> g.photoPaths().stream()).toList();
+        List<PhotoTile> flatTiles = photoGroups.stream().flatMap(g -> g.photos().stream()).toList();
 
         List<String> args = new ArrayList<>();
         args.add("-y");
-        for (Path imagePath : flatImagePaths) {
+        for (PhotoTile tile : flatTiles) {
             args.add("-loop");
             args.add("1");
             args.add("-t");
             args.add(String.valueOf(slideDurationSec));
             args.add("-i");
-            args.add(imagePath.toString());
+            args.add(tile.path().toString());
         }
 
-        int bgmInputIndex = flatImagePaths.size();
-        int decorationStartIndex = flatImagePaths.size();
+        int nextInputIndex = flatTiles.size();
+        Integer bgmInputIndex = null;
         if (bgmPath != null) {
+            bgmInputIndex = nextInputIndex;
             args.add("-stream_loop");
             args.add("-1");
             args.add("-i");
             args.add(bgmPath.toString());
-            decorationStartIndex = flatImagePaths.size() + 1;
+            nextInputIndex++;
         }
 
         double totalDurationSec = photoGroups.size() * slideDurationSec
                 - (photoGroups.size() - 1) * TRANSITION_DURATION_SEC;
-        ResolvedDecoration decoration = resolveDecoration(theme, decorationStartIndex);
-        addDecorationInputs(args, decoration, totalDurationSec);
 
-        // -shortestは出力オプションのため、全ての-i入力(装飾素材を含む)を追加し終えた後に指定する
+        ResolvedDecoration decoration = resolveDecoration(theme, nextInputIndex);
+        addDecorationInputs(args, decoration, totalDurationSec);
+        nextInputIndex += decoration != null ? decoration.inputPaths().size() : 0;
+
+        CropMaskInputs cropMasks = resolveCropMaskInputs(flatTiles, nextInputIndex);
+        addCropMaskInputs(args, cropMasks, totalDurationSec);
+
+        // -shortestは出力オプションのため、全ての-i入力(装飾素材・トリミングマスクを含む)を追加し終えた後に指定する
         if (bgmPath != null) {
             args.add("-shortest");
         }
 
         args.add("-filter_complex");
-        args.add(buildFullFilterComplex(photoGroups, slideDurationSec, theme, titleText, decoration));
+        args.add(buildFullFilterComplex(photoGroups, slideDurationSec, theme, titleText, decoration, cropMasks));
         args.add("-map");
         args.add("[vout]");
         if (bgmPath != null) {
@@ -169,15 +182,18 @@ public class SlideshowVideoBuilder {
     }
 
     private String buildFullFilterComplex(List<SlideGroup> slideGroups, int slideDurationSec, ThemeRenderer theme,
-                                           String titleText, ResolvedDecoration decoration) {
+                                           String titleText, ResolvedDecoration decoration, CropMaskInputs cropMasks) {
         StringBuilder filter = new StringBuilder();
 
         String[] backgroundLabels = appendBackgroundSource(filter, slideGroups.size(), decoration);
+        String[] ovalMaskLabels = appendCropMaskSource(filter, cropMasks.ovalInputIndex(),
+                cropMasks.ovalCount(), "omask");
 
         int[] inputIndexCursor = {0};
+        int[] ovalMaskCursor = {0};
         for (int g = 0; g < slideGroups.size(); g++) {
             appendSlideGroupComposite(filter, slideGroups.get(g), inputIndexCursor, g, slideDurationSec,
-                    theme.frameColorHex(), backgroundLabels[g], "v" + g);
+                    theme.frameColorHex(), backgroundLabels[g], "v" + g, ovalMaskLabels, ovalMaskCursor);
         }
 
         String finalSlideLabel;
@@ -238,12 +254,13 @@ public class SlideshowVideoBuilder {
     }
 
     /**
-     * 1〜{@value MAX_PHOTOS_PER_SLIDE}枚の写真を枠なし・トリミングなしで、
+     * 1〜{@value MAX_PHOTOS_PER_SLIDE}枚の写真を枠なし・トリミングなしで(トリミング形状指定時を除く)、
      * 背景装飾(または単色背景)の上に重ねて1スライド分の映像を作る。
      */
     private void appendSlideGroupComposite(StringBuilder filter, SlideGroup group, int[] inputIndexCursor,
                                             int slideIndex, int slideDurationSec, String frameColorHex,
-                                            String backgroundLabel, String outputLabel) {
+                                            String backgroundLabel, String outputLabel,
+                                            String[] ovalMaskLabels, int[] ovalMaskCursor) {
         String bgLabel;
         if (backgroundLabel != null) {
             bgLabel = backgroundLabel;
@@ -254,22 +271,17 @@ public class SlideshowVideoBuilder {
                     .append("];");
         }
 
-        int groupSize = group.photoPaths().size();
+        int groupSize = group.photos().size();
         int tileSize = tileSizeFor(groupSize);
         String currentLabel = bgLabel;
         for (int i = 0; i < groupSize; i++) {
             int inputIndex = inputIndexCursor[0]++;
+            PhotoTile tile = group.photos().get(i);
             CardLayout layout = pickCardLayout(slideIndex, i, groupSize, tileSize, group.layoutPattern());
             String cardLabel = "card" + slideIndex + "_" + i;
 
-            // 切り取らず、写真全体がtileSize四方に収まるよう縦横比を保ったまま縮小するだけにする(トリミングしない)
-            filter.append('[').append(inputIndex).append(":v]")
-                    .append("scale=").append(tileSize).append(':').append(tileSize)
-                    .append(":force_original_aspect_ratio=decrease,")
-                    .append("format=rgba,")
-                    .append("rotate=").append(layout.angleDeg()).append("*PI/180:c=black@0.0:ow=rotw(")
-                    .append(layout.angleDeg()).append("*PI/180):oh=roth(").append(layout.angleDeg())
-                    .append("*PI/180)[").append(cardLabel).append("];");
+            appendPhotoTileFilter(filter, inputIndex, tileSize, layout.angleDeg(), tile.cropShape(),
+                    ovalMaskLabels, ovalMaskCursor, cardLabel);
 
             // 写真ごとにトリミングなしで大きさが変わるため、配置枠の中心にoverlay_w/hを使って中央寄せする
             int slotCenterX = layout.x() + tileSize / 2;
@@ -284,6 +296,135 @@ public class SlideshowVideoBuilder {
 
         filter.append('[').append(currentLabel).append(']').append("format=yuv420p,setsar=1[")
                 .append(outputLabel).append("];");
+    }
+
+    // 角丸の丸みの大きさ(短辺に対する割合)。写真の縦横比に関わらず常に真円のカーブになる(引き伸ばされない)。
+    private static final double ROUNDED_CORNER_RADIUS_FRACTION = 0.08;
+
+    /**
+     * geqフィルタのalpha式。写真の実際の幅W・高さHをもとに、四隅それぞれについて
+     * 「角丸みの正方形の内側かつ、その角の内接円の外側」であれば透明(0)、それ以外は不透明(255)にする。
+     * min(W,H)を基準にすることで、写真の縦横比に関わらずカーブが真円のまま一定の大きさになる。
+     */
+    private static final String ROUNDED_CORNER_ALPHA_EXPR =
+            "if(lt(X\\,(min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + "))*lt(Y\\,(min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + "))"
+                    + "*gt(pow(X-(min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + ")\\,2)+pow(Y-(min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + ")\\,2)\\,pow(min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + "\\,2))"
+                    + "+gt(X\\,(W-min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + "))*lt(Y\\,(min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + "))"
+                    + "*gt(pow(X-(W-min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + ")\\,2)+pow(Y-(min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + ")\\,2)\\,pow(min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + "\\,2))"
+                    + "+lt(X\\,(min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + "))*gt(Y\\,(H-min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + "))"
+                    + "*gt(pow(X-(min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + ")\\,2)+pow(Y-(H-min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + ")\\,2)\\,pow(min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + "\\,2))"
+                    + "+gt(X\\,(W-min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + "))*gt(Y\\,(H-min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + "))"
+                    + "*gt(pow(X-(W-min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + ")\\,2)+pow(Y-(H-min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + ")\\,2)\\,pow(min(W\\,H)*" + ROUNDED_CORNER_RADIUS_FRACTION + "\\,2))"
+                    + "\\,0\\,255)";
+
+    // OVALで、正方形に近い写真(この比率の範囲内)を丸(CIRCLE)と見分けがつかなくならないよう、
+    // 少しだけ縦長にクランプする際の判定しきい値と、クランプ後の目標比率(幅/高さ)。
+    private static final double OVAL_NEAR_SQUARE_RATIO_MIN = 0.87;
+    private static final double OVAL_NEAR_SQUARE_RATIO_MAX = 1.15;
+    private static final double OVAL_CLAMPED_RATIO = 0.85;
+
+    /**
+     * OVALの幅クロップ式。写真が正方形に近い(縦横比がOVAL_NEAR_SQUARE_RATIO_MIN〜MAXの範囲内)場合のみ、
+     * 幅をih*OVAL_CLAMPED_RATIOまで削って縦長の楕円になるようにする。それ以外の写真はトリミングしない
+     * (iwのまま)ため、横長・縦長の写真は従来どおり削られない。
+     */
+    private static final String OVAL_WIDTH_CROP_EXPR =
+            "if(gt(iw/ih\\," + OVAL_NEAR_SQUARE_RATIO_MIN + ")*lt(iw/ih\\," + OVAL_NEAR_SQUARE_RATIO_MAX + ")"
+                    + "\\,ih*" + OVAL_CLAMPED_RATIO + "\\,iw)";
+
+    /**
+     * 1枚の写真を、切り取らずtileSize四方に収まるよう縮小し
+     * (RECTANGLEはそのまま、ROUNDEDは真円の角丸マスクを、CIRCLE/OVALは丸マスク画像でその形にトリミングし)、
+     * 指定角度で回転させてcardLabelという名前のラベルに出力する。
+     */
+    private void appendPhotoTileFilter(StringBuilder filter, int inputIndex, int tileSize, double angleDeg,
+                                        String cropShape, String[] ovalMaskLabels, int[] ovalMaskCursor,
+                                        String cardLabel) {
+        String preRotateLabel;
+        if ("ROUNDED".equals(cropShape)) {
+            // 縦横比を保ったまま縮小するだけ(トリミングなし)、角だけ真円でくり抜く
+            String roundedLabel = cardLabel + "_rounded";
+            filter.append('[').append(inputIndex).append(":v]scale=").append(tileSize).append(':').append(tileSize)
+                    .append(":force_original_aspect_ratio=decrease,format=rgba,")
+                    .append("geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='").append(ROUNDED_CORNER_ALPHA_EXPR).append("'[")
+                    .append(roundedLabel).append("];");
+            preRotateLabel = roundedLabel;
+        } else if ("CIRCLE".equals(cropShape)) {
+            // 写真の短辺に合わせて中央を正方形にトリミングしたうえで、真円にくり抜く
+            String squaredLabel = cardLabel + "_squared";
+            filter.append('[').append(inputIndex).append(":v]scale=").append(tileSize).append(':').append(tileSize)
+                    .append(":force_original_aspect_ratio=increase,")
+                    .append("crop=w='min(iw,ih)':h='min(iw,ih)'[").append(squaredLabel).append("];");
+            preRotateLabel = appendOvalMask(filter, squaredLabel, ovalMaskLabels[ovalMaskCursor[0]++], cardLabel);
+        } else if ("OVAL".equals(cropShape)) {
+            // 縦横比を保ったまま縮小するだけ(トリミングなし)、写真の外形に沿った楕円でくり抜く。
+            // ただし正方形に近い写真はCIRCLEと見分けがつかなくなるため、少しだけ縦長にクランプする。
+            String scaledLabel = cardLabel + "_scaled";
+            String ovalCropLabel = cardLabel + "_ovalcrop";
+            filter.append('[').append(inputIndex).append(":v]scale=").append(tileSize).append(':').append(tileSize)
+                    .append(":force_original_aspect_ratio=decrease[").append(scaledLabel).append("];");
+            filter.append('[').append(scaledLabel).append(']')
+                    .append("crop=w='").append(OVAL_WIDTH_CROP_EXPR).append("':h='ih'[")
+                    .append(ovalCropLabel).append("];");
+            preRotateLabel = appendOvalMask(filter, ovalCropLabel, ovalMaskLabels[ovalMaskCursor[0]++], cardLabel);
+        } else {
+            // RECTANGLE(デフォルト): 縦横比を保ったまま縮小するだけ、トリミングなし
+            String rgbaLabel = cardLabel + "_rgba";
+            filter.append('[').append(inputIndex).append(":v]scale=").append(tileSize).append(':').append(tileSize)
+                    .append(":force_original_aspect_ratio=decrease,format=rgba[").append(rgbaLabel).append("];");
+            preRotateLabel = rgbaLabel;
+        }
+
+        filter.append('[').append(preRotateLabel).append(']')
+                .append("rotate=").append(angleDeg).append("*PI/180:c=black@0.0:ow=rotw(")
+                .append(angleDeg).append("*PI/180):oh=roth(").append(angleDeg)
+                .append("*PI/180)[").append(cardLabel).append("];");
+    }
+
+    /**
+     * グレースケールの丸マスク画像(白=不透明/黒=透明)をscale2refで写真と同じ大きさに拡大縮小し、
+     * alphamergeで写真のアルファチャンネルとして合成する。正方形の写真に適用すればCIRCLE(真円)、
+     * 元の縦横比のままの写真に適用すればOVAL(楕円)になる。
+     */
+    private String appendOvalMask(StringBuilder filter, String photoLabel, String maskLabel, String cardLabel) {
+        String maskScaledLabel = cardLabel + "_mscaled";
+        String photoPassthroughLabel = cardLabel + "_pass";
+        String rgbaLabel = cardLabel + "_rgba";
+        String maskedLabel = cardLabel + "_masked";
+        filter.append('[').append(maskLabel).append("][").append(photoLabel).append(']')
+                .append("scale2ref=w=rw:h=rh[").append(maskScaledLabel).append("][")
+                .append(photoPassthroughLabel).append("];");
+        filter.append('[').append(photoPassthroughLabel).append(']').append("format=rgba[")
+                .append(rgbaLabel).append("];");
+        filter.append('[').append(rgbaLabel).append("][").append(maskScaledLabel).append(']')
+                .append("alphamerge[").append(maskedLabel).append("];");
+        return maskedLabel;
+    }
+
+    /**
+     * トリミングマスク画像(あれば)を、動画全体で使う枚数ぶんsplitして、各写真タイルで使えるラベル配列を返す。
+     * 該当形状の写真が1枚もない場合はinputIndexが-1となり、空配列を返す(マスク入力自体を追加していないため)。
+     */
+    private String[] appendCropMaskSource(StringBuilder filter, int inputIndex, int count, String labelPrefix) {
+        if (count == 0) {
+            return new String[0];
+        }
+        String[] labels = new String[count];
+        if (count == 1) {
+            String label = labelPrefix + "0";
+            filter.append('[').append(inputIndex).append(":v]format=gray[").append(label).append("];");
+            labels[0] = label;
+            return labels;
+        }
+        filter.append('[').append(inputIndex).append(":v]format=gray,split=").append(count);
+        for (int k = 0; k < count; k++) {
+            filter.append('[').append(labelPrefix).append(k).append(']');
+        }
+        filter.append(';');
+        for (int k = 0; k < count; k++) {
+            labels[k] = labelPrefix + k;
+        }
+        return labels;
     }
 
     private record CardLayout(double angleDeg, int x, int y) {
@@ -468,6 +609,46 @@ public class SlideshowVideoBuilder {
     }
 
     private record ResolvedDecoration(ThemeDecoration decoration, int startInputIndex, List<Path> inputPaths) {
+    }
+
+    /**
+     * ROUNDED/OVALトリミング用マスク画像の入力インデックスと、動画全体でその形状を使う写真の枚数。
+     * 該当形状の写真が1枚もなければinputIndexは-1(そのマスク入力自体を-iに追加しない)。
+     */
+    /**
+     * CIRCLE/OVALで使う丸マスク画像(masks/oval.png)の入力インデックスと、動画全体でその画像を使う写真の
+     * 合計枚数(CIRCLE+OVAL)。該当形状の写真が1枚もなければinputIndexは-1(マスク入力自体を-iに追加しない)。
+     * ROUNDEDはgeqフィルタで写真ごとに動的計算するため、マスク画像は使わない。
+     */
+    private record CropMaskInputs(int ovalInputIndex, int ovalCount, Path ovalPath) {
+    }
+
+    private CropMaskInputs resolveCropMaskInputs(List<PhotoTile> flatTiles, int startInputIndex) {
+        int ovalCount = (int) flatTiles.stream()
+                .filter(t -> "OVAL".equals(t.cropShape()) || "CIRCLE".equals(t.cropShape()))
+                .count();
+
+        int ovalIndex = -1;
+        Path ovalPath = null;
+        if (ovalCount > 0) {
+            ovalIndex = startInputIndex;
+            ovalPath = storageService.resolveLocalPath("masks/oval.png");
+        }
+        return new CropMaskInputs(ovalIndex, ovalCount, ovalPath);
+    }
+
+    private void addCropMaskInputs(List<String> args, CropMaskInputs cropMasks, double totalDurationSec) {
+        if (cropMasks.ovalPath() == null) {
+            return;
+        }
+        // -loop 1の静止画入力は-tで尺を明示しないと無制限ストリームとなり、
+        // overlay/alphamergeが終端を検出できずffmpegがハングするため、動画全体の尺に合わせて明示的に区切る。
+        args.add("-loop");
+        args.add("1");
+        args.add("-t");
+        args.add(String.valueOf(totalDurationSec));
+        args.add("-i");
+        args.add(cropMasks.ovalPath().toString());
     }
 
     private String scaleAndPadFilter(String frameColorHex) {

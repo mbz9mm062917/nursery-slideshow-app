@@ -126,16 +126,17 @@ public class DevController {
      */
     private List<SlideshowVideoBuilder.SlideGroup> groupByPageBreak(List<Photo> photos) {
         List<SlideshowVideoBuilder.SlideGroup> groups = new ArrayList<>();
-        List<Path> currentPaths = new ArrayList<>();
+        List<SlideshowVideoBuilder.PhotoTile> currentTiles = new ArrayList<>();
         for (Photo photo : photos) {
-            currentPaths.add(storageService.resolveLocalPath(photo.getStorageKey()));
+            currentTiles.add(new SlideshowVideoBuilder.PhotoTile(
+                    storageService.resolveLocalPath(photo.getStorageKey()), photo.getCropShape()));
             if (photo.isPageBreakAfter()) {
-                groups.add(new SlideshowVideoBuilder.SlideGroup(currentPaths, photo.getLayoutPattern()));
-                currentPaths = new ArrayList<>();
+                groups.add(new SlideshowVideoBuilder.SlideGroup(currentTiles, photo.getLayoutPattern()));
+                currentTiles = new ArrayList<>();
             }
         }
-        if (!currentPaths.isEmpty()) {
-            groups.add(new SlideshowVideoBuilder.SlideGroup(currentPaths, null));
+        if (!currentTiles.isEmpty()) {
+            groups.add(new SlideshowVideoBuilder.SlideGroup(currentTiles, null));
         }
         return groups;
     }

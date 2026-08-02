@@ -55,6 +55,13 @@ public class Photo {
     @Column(name = "layout_pattern")
     private String layoutPattern;
 
+    /**
+     * この写真のトリミング形状を表すコード。"RECTANGLE"(そのまま・デフォルト)、"ROUNDED"(角丸)、
+     * "CIRCLE"(丸)、"OVAL"(楕円)。nullの場合はRECTANGLE(トリミングなし)として扱う。
+     */
+    @Column(name = "crop_shape")
+    private String cropShape;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

@@ -5,4 +5,5 @@ export interface Photo {
   fileUrl: string
   pageBreakAfter: boolean
   layoutPattern: string | null
+  cropShape: string | null
 }

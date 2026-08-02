@@ -50,7 +50,10 @@ public class VideoGenerationService {
             VideoGenerationInput input = videoJobService.loadGenerationInput(jobId);
             List<SlideshowVideoBuilder.SlideGroup> photoGroups = input.photoGroups().stream()
                     .map(group -> new SlideshowVideoBuilder.SlideGroup(
-                            group.storageKeys().stream().map(storageService::resolveLocalPath).toList(),
+                            group.photos().stream()
+                                    .map(ref -> new SlideshowVideoBuilder.PhotoTile(
+                                            storageService.resolveLocalPath(ref.storageKey()), ref.cropShape()))
+                                    .toList(),
                             group.layoutPattern()))
                     .toList();
             Path bgmPath = input.bgmStorageKey() != null

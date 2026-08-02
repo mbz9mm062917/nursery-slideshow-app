@@ -1,5 +1,6 @@
 package com.nursery.slideshow.photo;
 
+import com.nursery.slideshow.photo.dto.PhotoCropShapeRequest;
 import com.nursery.slideshow.photo.dto.PhotoOrderRequest;
 import com.nursery.slideshow.photo.dto.PhotoPageBreakRequest;
 import com.nursery.slideshow.photo.dto.PhotoResponse;
@@ -47,6 +48,12 @@ public class PhotoController {
     public List<PhotoResponse> updatePageBreaks(@PathVariable String projectId,
                                                  @RequestBody PhotoPageBreakRequest request) {
         return photoService.updatePageBreaks(projectId, request.pageBreakAfterPhotoIds(), request.layoutPatterns());
+    }
+
+    @PutMapping("/api/projects/{projectId}/photos/crop-shapes")
+    public List<PhotoResponse> updateCropShapes(@PathVariable String projectId,
+                                                 @RequestBody PhotoCropShapeRequest request) {
+        return photoService.updateCropShapes(projectId, request.cropShapes());
     }
 
     @DeleteMapping("/api/photos/{photoId}")

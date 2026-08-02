@@ -6,6 +6,7 @@ public record PhotoResponse(
         Integer displayOrder,
         String fileUrl,
         boolean pageBreakAfter,
-        String layoutPattern
+        String layoutPattern,
+        String cropShape
 ) {
 }

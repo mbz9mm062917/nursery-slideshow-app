@@ -36,4 +36,11 @@ export const photoApi = {
     })
     return response.data
   },
+
+  async updateCropShapes(projectId: string, cropShapes: Record<number, string>): Promise<Photo[]> {
+    const response = await httpClient.put<Photo[]>(`/api/projects/${projectId}/photos/crop-shapes`, {
+      cropShapes,
+    })
+    return response.data
+  },
 }

@@ -26,6 +26,13 @@ const LAYOUT_OPTIONS: Record<number, { value: string; label: string }[]> = {
   ],
 }
 
+const CROP_SHAPE_OPTIONS = [
+  { value: 'RECTANGLE', label: '四角' },
+  { value: 'ROUNDED', label: '角丸' },
+  { value: 'CIRCLE', label: '丸' },
+  { value: 'OVAL', label: '楕円' },
+]
+
 const props = defineProps<{ projectId: string }>()
 const router = useRouter()
 
@@ -113,6 +120,14 @@ function selectLayoutPattern(page: Photo[], value: string) {
   page[page.length - 1].layoutPattern = value
 }
 
+function selectedCropShape(photo: Photo): string {
+  return photo.cropShape ?? 'RECTANGLE'
+}
+
+function selectCropShape(photo: Photo, value: string) {
+  photo.cropShape = value
+}
+
 function globalIndexOf(photo: Photo): number {
   return localPhotos.value.findIndex((p) => p.id === photo.id)
 }
@@ -126,12 +141,19 @@ async function handleNext() {
   try {
     const pageBreakAfterPhotoIds = localPhotos.value.filter((p) => p.pageBreakAfter).map((p) => p.id)
     const layoutPatterns: Record<number, string> = {}
+    const cropShapes: Record<number, string> = {}
     for (const photo of localPhotos.value) {
       if (photo.pageBreakAfter && photo.layoutPattern) {
         layoutPatterns[photo.id] = photo.layoutPattern
       }
+      if (photo.cropShape) {
+        cropShapes[photo.id] = photo.cropShape
+      }
     }
-    await photoApi.updatePageBreaks(props.projectId, pageBreakAfterPhotoIds, layoutPatterns)
+    await Promise.all([
+      photoApi.updatePageBreaks(props.projectId, pageBreakAfterPhotoIds, layoutPatterns),
+      photoApi.updateCropShapes(props.projectId, cropShapes),
+    ])
     router.push({ name: 'title-input', params: { projectId: props.projectId } })
   } catch (error) {
     errorMessage.value = extractErrorMessage(error, 'ページ構成の保存に失敗しました')
@@ -159,7 +181,7 @@ onMounted(loadPhotos)
     <ErrorBanner v-if="errorMessage" :message="errorMessage" />
     <p class="muted">
       1ページに入れる写真をまとめられます(最大{{ MAX_PHOTOS_PER_PAGE }}枚まで)。「つなげる」で同じページに、
-      「分ける」で別のページに分けられます。各ページで写真の並べ方も選べます。
+      「分ける」で別のページに分けられます。各ページで写真の並べ方、写真ごとにトリミング形状も選べます。
     </p>
     <div class="pages-flow">
       <template v-for="(page, pageIndex) in pages" :key="pageIndex">
@@ -167,7 +189,26 @@ onMounted(loadPhotos)
           <p class="page-label">ページ{{ pageIndex + 1 }}({{ page.length }}枚)</p>
           <div class="page-photos">
             <template v-for="(photo, photoIndexInPage) in page" :key="photo.id">
-              <img class="page-thumb" :src="resolveApiUrl(photo.fileUrl)" :alt="photo.originalFileName" />
+              <div class="photo-cell">
+                <img
+                  class="page-thumb"
+                  :class="'shape-' + selectedCropShape(photo).toLowerCase()"
+                  :src="resolveApiUrl(photo.fileUrl)"
+                  :alt="photo.originalFileName"
+                />
+                <div class="crop-shape-options">
+                  <button
+                    v-for="shape in CROP_SHAPE_OPTIONS"
+                    :key="shape.value"
+                    type="button"
+                    class="crop-shape-option"
+                    :class="{ selected: selectedCropShape(photo) === shape.value }"
+                    @click="selectCropShape(photo, shape.value)"
+                  >
+                    {{ shape.label }}
+                  </button>
+                </div>
+              </div>
               <button
                 v-if="photoIndexInPage < page.length - 1"
                 type="button"
@@ -232,11 +273,51 @@ onMounted(loadPhotos)
   gap: 8px;
 }
 
+.photo-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
 .page-thumb {
   width: 90px;
   height: 90px;
   object-fit: cover;
+}
+
+.page-thumb.shape-rectangle {
   border-radius: 6px;
+}
+
+.page-thumb.shape-rounded {
+  border-radius: 8px;
+}
+
+.page-thumb.shape-circle,
+.page-thumb.shape-oval {
+  border-radius: 50%;
+}
+
+.crop-shape-options {
+  display: flex;
+  gap: 4px;
+}
+
+.crop-shape-option {
+  font-size: 11px;
+  padding: 3px 6px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.crop-shape-option.selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: bold;
 }
 
 .layout-options {

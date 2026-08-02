@@ -109,16 +109,16 @@ public class VideoJobService {
      */
     private List<PhotoPageGroup> groupByPageBreak(List<Photo> photos) {
         List<PhotoPageGroup> groups = new ArrayList<>();
-        List<String> currentKeys = new ArrayList<>();
+        List<PhotoRef> currentRefs = new ArrayList<>();
         for (Photo photo : photos) {
-            currentKeys.add(photo.getStorageKey());
+            currentRefs.add(new PhotoRef(photo.getStorageKey(), photo.getCropShape()));
             if (photo.isPageBreakAfter()) {
-                groups.add(new PhotoPageGroup(currentKeys, photo.getLayoutPattern()));
-                currentKeys = new ArrayList<>();
+                groups.add(new PhotoPageGroup(currentRefs, photo.getLayoutPattern()));
+                currentRefs = new ArrayList<>();
             }
         }
-        if (!currentKeys.isEmpty()) {
-            groups.add(new PhotoPageGroup(currentKeys, null));
+        if (!currentRefs.isEmpty()) {
+            groups.add(new PhotoPageGroup(currentRefs, null));
         }
         return groups;
     }

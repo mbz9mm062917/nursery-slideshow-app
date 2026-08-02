@@ -36,6 +36,9 @@ public class PhotoService {
             2, Set.of("SIDE_BY_SIDE", "OFFSET"),
             3, Set.of("SIDE_BY_SIDE", "ZIGZAG"));
 
+    // 写真ごとに選べるトリミング形状
+    private static final Set<String> ALLOWED_CROP_SHAPES = Set.of("RECTANGLE", "ROUNDED", "CIRCLE", "OVAL");
+
     // JPEG: FF D8 FF / PNG: 89 50 4E 47 0D 0A 1A 0A
     private static final byte[] JPEG_MAGIC_BYTES = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF};
     private static final byte[] PNG_MAGIC_BYTES =
@@ -155,6 +158,31 @@ public class PhotoService {
         return list(projectId);
     }
 
+    /**
+     * cropShapesに含まれる写真のトリミング形状("RECTANGLE"/"ROUNDED"/"OVAL")を更新する。
+     * 指定されなかった写真の形状は変更しない。
+     */
+    public List<PhotoResponse> updateCropShapes(String projectId, Map<Long, String> cropShapes) {
+        if (cropShapes == null) {
+            throw new ValidationException("トリミング形状の内容が正しくありません");
+        }
+
+        List<Photo> photos = photoRepository.findByProjectIdOrderByDisplayOrderAsc(projectId);
+        Map<Long, Photo> photoById = photos.stream().collect(Collectors.toMap(Photo::getId, p -> p));
+
+        for (Map.Entry<Long, String> entry : cropShapes.entrySet()) {
+            if (!photoById.containsKey(entry.getKey()) || !ALLOWED_CROP_SHAPES.contains(entry.getValue())) {
+                throw new ValidationException("トリミング形状の内容が正しくありません");
+            }
+        }
+
+        for (Map.Entry<Long, String> entry : cropShapes.entrySet()) {
+            photoById.get(entry.getKey()).setCropShape(entry.getValue());
+        }
+
+        return list(projectId);
+    }
+
     public void delete(Long photoId) {
         Photo photo = photoRepository.findById(photoId)
                 .orElseThrow(() -> new ResourceNotFoundException("指定された写真が見つかりません"));
@@ -228,7 +256,8 @@ public class PhotoService {
                 photo.getDisplayOrder(),
                 "/api/photos/" + photo.getId() + "/file",
                 photo.isPageBreakAfter(),
-                photo.getLayoutPattern()
+                photo.getLayoutPattern(),
+                photo.getCropShape()
         );
     }
 }
