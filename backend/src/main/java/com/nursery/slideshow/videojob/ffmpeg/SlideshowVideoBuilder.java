@@ -18,24 +18,14 @@ public class SlideshowVideoBuilder {
     private static final double TRANSITION_DURATION_SEC = 1.0;
     private static final double TITLE_DISPLAY_SEC = 3.0;
 
-    // 1カットあたり1〜3枚までの写真をポラロイド風カードとして重ねて配置する(枚数はページ編集画面で作成者が指定)
+    // 1カットあたり1〜3枚までの写真を枠なしで配置する(枚数はページ編集画面で作成者が指定)
     private static final int MAX_PHOTOS_PER_SLIDE = 3;
 
-    // 1〜2枚のカットで使う標準サイズのカード
-    private static final int CARD_CONTENT_SIZE = 460;
-    private static final int CARD_BORDER_SIDE = 20;
-    private static final int CARD_BORDER_TOP = 20;
-    private static final int CARD_BORDER_BOTTOM = 70;
-    private static final int CARD_WIDTH = CARD_CONTENT_SIZE + CARD_BORDER_SIDE * 2;
-    private static final int CARD_HEIGHT = CARD_CONTENT_SIZE + CARD_BORDER_TOP + CARD_BORDER_BOTTOM;
+    // 1〜2枚のカットで使う配置枠の一辺サイズ(縦横比を保ったままこの枠に収まるよう縮小し、枠の中央に配置する)
+    private static final int PHOTO_TILE_SIZE = 460;
 
     // 3枚のカットは1枚あたりを小さくして横に並べる
-    private static final int SMALL_CARD_CONTENT_SIZE = 340;
-    private static final int SMALL_CARD_BORDER_SIDE = 16;
-    private static final int SMALL_CARD_BORDER_TOP = 16;
-    private static final int SMALL_CARD_BORDER_BOTTOM = 56;
-    private static final int SMALL_CARD_WIDTH = SMALL_CARD_CONTENT_SIZE + SMALL_CARD_BORDER_SIDE * 2;
-    private static final int SMALL_CARD_HEIGHT = SMALL_CARD_CONTENT_SIZE + SMALL_CARD_BORDER_TOP + SMALL_CARD_BORDER_BOTTOM;
+    private static final int SMALL_PHOTO_TILE_SIZE = 340;
 
     private final FfmpegExecutor ffmpegExecutor;
     private final FfmpegProperties ffmpegProperties;
@@ -248,7 +238,7 @@ public class SlideshowVideoBuilder {
     }
 
     /**
-     * 1〜{@value MAX_PHOTOS_PER_SLIDE}枚の写真をポラロイド風カードとして、
+     * 1〜{@value MAX_PHOTOS_PER_SLIDE}枚の写真を枠なし・トリミングなしで、
      * 背景装飾(または単色背景)の上に重ねて1スライド分の映像を作る。
      */
     private void appendSlideGroupComposite(StringBuilder filter, SlideGroup group, int[] inputIndexCursor,
@@ -265,28 +255,29 @@ public class SlideshowVideoBuilder {
         }
 
         int groupSize = group.photoPaths().size();
-        CardSize size = cardSizeFor(groupSize);
+        int tileSize = tileSizeFor(groupSize);
         String currentLabel = bgLabel;
         for (int i = 0; i < groupSize; i++) {
             int inputIndex = inputIndexCursor[0]++;
-            CardLayout layout = pickCardLayout(slideIndex, i, groupSize, size, group.layoutPattern());
+            CardLayout layout = pickCardLayout(slideIndex, i, groupSize, tileSize, group.layoutPattern());
             String cardLabel = "card" + slideIndex + "_" + i;
 
+            // 切り取らず、写真全体がtileSize四方に収まるよう縦横比を保ったまま縮小するだけにする(トリミングしない)
             filter.append('[').append(inputIndex).append(":v]")
-                    .append("scale=").append(size.contentSize()).append(':').append(size.contentSize())
+                    .append("scale=").append(tileSize).append(':').append(tileSize)
                     .append(":force_original_aspect_ratio=decrease,")
-                    .append("pad=").append(size.contentSize()).append(':').append(size.contentSize())
-                    .append(":(ow-iw)/2:(oh-ih)/2:color=white,")
-                    .append("pad=").append(size.width()).append(':').append(size.height()).append(':')
-                    .append(size.borderSide()).append(':').append(size.borderTop()).append(":color=white,")
                     .append("format=rgba,")
                     .append("rotate=").append(layout.angleDeg()).append("*PI/180:c=black@0.0:ow=rotw(")
                     .append(layout.angleDeg()).append("*PI/180):oh=roth(").append(layout.angleDeg())
                     .append("*PI/180)[").append(cardLabel).append("];");
 
+            // 写真ごとにトリミングなしで大きさが変わるため、配置枠の中心にoverlay_w/hを使って中央寄せする
+            int slotCenterX = layout.x() + tileSize / 2;
+            int slotCenterY = layout.y() + tileSize / 2;
             String nextLabel = "slide" + slideIndex + "_ov" + i;
             filter.append('[').append(currentLabel).append("][").append(cardLabel).append(']')
-                    .append("overlay=x=").append(layout.x()).append(":y=").append(layout.y())
+                    .append("overlay=x=").append(slotCenterX).append("-overlay_w/2:y=").append(slotCenterY)
+                    .append("-overlay_h/2")
                     .append('[').append(nextLabel).append("];");
             currentLabel = nextLabel;
         }
@@ -295,43 +286,35 @@ public class SlideshowVideoBuilder {
                 .append(outputLabel).append("];");
     }
 
-    private record CardSize(int contentSize, int borderSide, int borderTop, int borderBottom, int width, int height) {
-    }
-
     private record CardLayout(double angleDeg, int x, int y) {
     }
 
-    private CardSize cardSizeFor(int groupSize) {
-        if (groupSize >= 3) {
-            return new CardSize(SMALL_CARD_CONTENT_SIZE, SMALL_CARD_BORDER_SIDE, SMALL_CARD_BORDER_TOP,
-                    SMALL_CARD_BORDER_BOTTOM, SMALL_CARD_WIDTH, SMALL_CARD_HEIGHT);
-        }
-        return new CardSize(CARD_CONTENT_SIZE, CARD_BORDER_SIDE, CARD_BORDER_TOP, CARD_BORDER_BOTTOM,
-                CARD_WIDTH, CARD_HEIGHT);
+    private int tileSizeFor(int groupSize) {
+        return groupSize >= 3 ? SMALL_PHOTO_TILE_SIZE : PHOTO_TILE_SIZE;
     }
 
     /**
-     * スライド内のカード配置(角度・位置)を決める。奇数番目のスライドでは配置を反転し、
+     * スライド内の写真タイルの配置(角度・位置)を決める。奇数番目のスライドでは配置を反転し、
      * 動画全体で同じ配置が単調に繰り返されないようにしている。
      * layoutPatternは作成者がページ構成画面で選んだ並べ方(未指定ならグループ枚数ごとのデフォルト)。
      * いずれのパターンも写真同士が重ならないシンプルな配置とする。
      */
-    private CardLayout pickCardLayout(int slideIndex, int photoIndexInGroup, int groupSize, CardSize size,
+    private CardLayout pickCardLayout(int slideIndex, int photoIndexInGroup, int groupSize, int tileSize,
                                        String layoutPattern) {
         boolean flip = slideIndex % 2 == 1;
 
         if (groupSize == 1) {
             // TILTED(デフォルト): 少し傾ける / STRAIGHT: 傾けない
             double angle = "STRAIGHT".equals(layoutPattern) ? 0 : (flip ? 4 : -4);
-            return new CardLayout(angle, (VIDEO_WIDTH - size.width()) / 2, (VIDEO_HEIGHT - size.height()) / 2);
+            return new CardLayout(angle, (VIDEO_WIDTH - tileSize) / 2, (VIDEO_HEIGHT - tileSize) / 2);
         }
 
         if (groupSize == 2) {
             int gap = 40;
-            int totalWidth = size.width() * 2 + gap;
+            int totalWidth = tileSize * 2 + gap;
             int startX = (VIDEO_WIDTH - totalWidth) / 2;
-            int[] xPositions = {startX, startX + size.width() + gap};
-            int baseY = (VIDEO_HEIGHT - size.height()) / 2;
+            int[] xPositions = {startX, startX + tileSize + gap};
+            int baseY = (VIDEO_HEIGHT - tileSize) / 2;
 
             if ("OFFSET".equals(layoutPattern)) {
                 // 上下に少しずらす: 横位置はそのまま、片方を少し上に、もう片方を少し下にずらす
@@ -345,10 +328,10 @@ public class SlideshowVideoBuilder {
 
         // groupSize == 3
         int gap = 20;
-        int totalWidth = size.width() * 3 + gap * 2;
+        int totalWidth = tileSize * 3 + gap * 2;
         int startX = (VIDEO_WIDTH - totalWidth) / 2;
-        int[] xPositions = {startX, startX + size.width() + gap, startX + (size.width() + gap) * 2};
-        int baseY = (VIDEO_HEIGHT - size.height()) / 2;
+        int[] xPositions = {startX, startX + tileSize + gap, startX + (tileSize + gap) * 2};
+        int baseY = (VIDEO_HEIGHT - tileSize) / 2;
 
         if ("ZIGZAG".equals(layoutPattern)) {
             // 山谷に並べる: 横位置はそのまま、両端と中央を上下互い違いにずらす
