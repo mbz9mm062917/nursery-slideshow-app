@@ -39,6 +39,14 @@ public class Photo {
     @Column(name = "display_order", nullable = false)
     private Integer displayOrder;
 
+    /**
+     * このPhotoの直後でページ(1カット)を区切るかどうか。
+     * trueの場合、このPhotoで1ページが終わり、次のPhotoから新しいページになる。
+     * デフォルトtrue(=1枚1ページ)。falseにすると次の写真と同じページにまとめられる。
+     */
+    @Column(name = "page_break_after", nullable = false)
+    private boolean pageBreakAfter = true;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

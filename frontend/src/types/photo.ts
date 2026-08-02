@@ -3,4 +3,5 @@ export interface Photo {
   originalFileName: string
   displayOrder: number
   fileUrl: string
+  pageBreakAfter: boolean
 }

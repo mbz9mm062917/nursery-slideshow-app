@@ -53,7 +53,7 @@ function handleBack() {
 
 <template>
   <WizardLayout
-    :step="4"
+    :step="5"
     :total-steps="WIZARD_TOTAL_STEPS"
     title="テーマを選択"
     :next-disabled="!canGoNext || isSubmitting"

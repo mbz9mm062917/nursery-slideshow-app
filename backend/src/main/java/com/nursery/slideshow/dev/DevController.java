@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 @Profile("dev")
@@ -92,9 +93,7 @@ public class DevController {
             throw new ResourceNotFoundException("このプロジェクトには写真がありません");
         }
 
-        List<Path> imagePaths = photos.stream()
-                .map(photo -> storageService.resolveLocalPath(photo.getStorageKey()))
-                .toList();
+        List<List<Path>> photoGroups = groupByPageBreak(photos);
 
         int slideDurationSec = project.getSlideDurationSec() != null ? project.getSlideDurationSec() : 3;
 
@@ -112,12 +111,32 @@ public class DevController {
         try {
             Path outputPath = workDir.resolve("slideshow.mp4");
             slideshowVideoBuilder.generateSlideshowVideo(
-                    imagePaths, outputPath, slideDurationSec, bgmPath, theme, project.getTitle());
+                    photoGroups, outputPath, slideDurationSec, bgmPath, theme, project.getTitle());
 
             byte[] videoBytes = Files.readAllBytes(outputPath);
             return ResponseEntity.ok().contentType(MediaType.valueOf("video/mp4")).body(new ByteArrayResource(videoBytes));
         } finally {
             TempDirectoryCleanup.deleteQuietly(workDir);
         }
+    }
+
+    /**
+     * 表示順に並んだ写真を、pageBreakAfterの位置で1ページ(1カット)ごとのグループに分割する。
+     * VideoJobService#groupByPageBreakと同等の処理(dev診断用エンドポイントのため個別に保持)。
+     */
+    private List<List<Path>> groupByPageBreak(List<Photo> photos) {
+        List<List<Path>> groups = new ArrayList<>();
+        List<Path> currentGroup = new ArrayList<>();
+        for (Photo photo : photos) {
+            currentGroup.add(storageService.resolveLocalPath(photo.getStorageKey()));
+            if (photo.isPageBreakAfter()) {
+                groups.add(currentGroup);
+                currentGroup = new ArrayList<>();
+            }
+        }
+        if (!currentGroup.isEmpty()) {
+            groups.add(currentGroup);
+        }
+        return groups;
     }
 }

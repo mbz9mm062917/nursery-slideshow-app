@@ -1,1 +1,1 @@
-export const WIZARD_TOTAL_STEPS = 7
+export const WIZARD_TOTAL_STEPS = 8

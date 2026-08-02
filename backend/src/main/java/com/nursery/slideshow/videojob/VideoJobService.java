@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -90,18 +91,35 @@ public class VideoJobService {
         VideoJob job = findOrThrow(jobId);
         Project project = job.getProject();
 
-        List<String> photoStorageKeys = photoRepository.findByProjectIdOrderByDisplayOrderAsc(project.getId())
-                .stream()
-                .map(Photo::getStorageKey)
-                .toList();
+        List<Photo> photos = photoRepository.findByProjectIdOrderByDisplayOrderAsc(project.getId());
+        List<List<String>> photoGroups = groupByPageBreak(photos);
         String bgmStorageKey = project.getBgm() != null ? project.getBgm().getStorageKey() : null;
 
         return new VideoGenerationInput(
-                photoStorageKeys,
+                photoGroups,
                 project.getSlideDurationSec(),
                 project.getTheme().getCode(),
                 bgmStorageKey,
                 project.getTitle());
+    }
+
+    /**
+     * 表示順に並んだ写真を、pageBreakAfterの位置で1ページ(1カット)ごとのグループに分割する。
+     */
+    private List<List<String>> groupByPageBreak(List<Photo> photos) {
+        List<List<String>> groups = new ArrayList<>();
+        List<String> currentGroup = new ArrayList<>();
+        for (Photo photo : photos) {
+            currentGroup.add(photo.getStorageKey());
+            if (photo.isPageBreakAfter()) {
+                groups.add(currentGroup);
+                currentGroup = new ArrayList<>();
+            }
+        }
+        if (!currentGroup.isEmpty()) {
+            groups.add(currentGroup);
+        }
+        return groups;
     }
 
     public void markProcessing(Long jobId) {

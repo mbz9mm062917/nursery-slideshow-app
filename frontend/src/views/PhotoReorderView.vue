@@ -29,7 +29,7 @@ async function handleReorder(photoIds: number[]) {
 }
 
 function handleNext() {
-  router.push({ name: 'title-input', params: { projectId: props.projectId } })
+  router.push({ name: 'photo-pages', params: { projectId: props.projectId } })
 }
 
 function handleBack() {

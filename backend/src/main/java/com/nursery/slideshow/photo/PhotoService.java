@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 public class PhotoService {
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png");
+    private static final int MAX_PHOTOS_PER_PAGE = 3;
 
     // JPEG: FF D8 FF / PNG: 89 50 4E 47 0D 0A 1A 0A
     private static final byte[] JPEG_MAGIC_BYTES = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF};
@@ -96,6 +97,41 @@ public class PhotoService {
         Map<Long, Photo> photoById = photos.stream().collect(Collectors.toMap(Photo::getId, p -> p));
         for (int i = 0; i < photoIds.size(); i++) {
             photoById.get(photoIds.get(i)).setDisplayOrder(i);
+        }
+
+        return list(projectId);
+    }
+
+    /**
+     * pageBreakAfterPhotoIdsに含まれる写真の直後でページ(1カット)を区切る。
+     * 含まれない写真は次の写真と同じページにまとまる。1ページの上限はMAX_PHOTOS_PER_PAGE枚。
+     */
+    public List<PhotoResponse> updatePageBreaks(String projectId, List<Long> pageBreakAfterPhotoIds) {
+        if (pageBreakAfterPhotoIds == null) {
+            throw new ValidationException("ページ区切りの内容が正しくありません");
+        }
+
+        List<Photo> photos = photoRepository.findByProjectIdOrderByDisplayOrderAsc(projectId);
+        Set<Long> existingIds = photos.stream().map(Photo::getId).collect(Collectors.toSet());
+        Set<Long> breakIds = new HashSet<>(pageBreakAfterPhotoIds);
+
+        if (!existingIds.containsAll(breakIds)) {
+            throw new ValidationException("ページ区切りの内容が正しくありません");
+        }
+
+        int groupSize = 0;
+        for (Photo photo : photos) {
+            groupSize++;
+            if (groupSize > MAX_PHOTOS_PER_PAGE) {
+                throw new ValidationException("1ページに配置できる写真は" + MAX_PHOTOS_PER_PAGE + "枚までです");
+            }
+            if (breakIds.contains(photo.getId())) {
+                groupSize = 0;
+            }
+        }
+
+        for (Photo photo : photos) {
+            photo.setPageBreakAfter(breakIds.contains(photo.getId()));
         }
 
         return list(projectId);
@@ -172,7 +208,8 @@ public class PhotoService {
                 photo.getId(),
                 photo.getOriginalFileName(),
                 photo.getDisplayOrder(),
-                "/api/photos/" + photo.getId() + "/file"
+                "/api/photos/" + photo.getId() + "/file",
+                photo.isPageBreakAfter()
         );
     }
 }

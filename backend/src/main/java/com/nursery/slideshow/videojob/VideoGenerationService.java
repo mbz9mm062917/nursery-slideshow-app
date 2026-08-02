@@ -48,8 +48,8 @@ public class VideoGenerationService {
             videoJobService.markProcessing(jobId);
 
             VideoGenerationInput input = videoJobService.loadGenerationInput(jobId);
-            List<Path> imagePaths = input.photoStorageKeys().stream()
-                    .map(storageService::resolveLocalPath)
+            List<List<Path>> photoGroups = input.photoGroups().stream()
+                    .map(group -> group.stream().map(storageService::resolveLocalPath).toList())
                     .toList();
             Path bgmPath = input.bgmStorageKey() != null
                     ? storageService.resolveLocalPath(input.bgmStorageKey())
@@ -59,7 +59,7 @@ public class VideoGenerationService {
             workDir = Files.createTempDirectory("video-job-" + jobId);
             Path outputPath = workDir.resolve("output.mp4");
             slideshowVideoBuilder.generateSlideshowVideo(
-                    imagePaths, outputPath, input.slideDurationSec(), bgmPath, theme, input.title());
+                    photoGroups, outputPath, input.slideDurationSec(), bgmPath, theme, input.title());
 
             String outputStorageKey;
             try (InputStream in = Files.newInputStream(outputPath)) {

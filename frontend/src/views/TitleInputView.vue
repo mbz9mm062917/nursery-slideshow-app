@@ -38,13 +38,13 @@ async function handleNext() {
 }
 
 function handleBack() {
-  router.push({ name: 'photo-reorder', params: { projectId: props.projectId } })
+  router.push({ name: 'photo-pages', params: { projectId: props.projectId } })
 }
 </script>
 
 <template>
   <WizardLayout
-    :step="3"
+    :step="4"
     :total-steps="WIZARD_TOTAL_STEPS"
     title="タイトルを入力"
     :next-disabled="!title.trim() || isSubmitting"

@@ -24,4 +24,11 @@ export const photoApi = {
     })
     return response.data
   },
+
+  async updatePageBreaks(projectId: string, pageBreakAfterPhotoIds: number[]): Promise<Photo[]> {
+    const response = await httpClient.put<Photo[]>(`/api/projects/${projectId}/photos/page-breaks`, {
+      pageBreakAfterPhotoIds,
+    })
+    return response.data
+  },
 }

@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import PhotoUploadView from '../views/PhotoUploadView.vue'
 import PhotoReorderView from '../views/PhotoReorderView.vue'
+import PhotoPagesView from '../views/PhotoPagesView.vue'
 import TitleInputView from '../views/TitleInputView.vue'
 import ThemeSelectView from '../views/ThemeSelectView.vue'
 import BgmSelectView from '../views/BgmSelectView.vue'
@@ -24,6 +25,12 @@ export const router = createRouter({
       path: '/projects/:projectId/reorder',
       name: 'photo-reorder',
       component: PhotoReorderView,
+      props: true,
+    },
+    {
+      path: '/projects/:projectId/pages',
+      name: 'photo-pages',
+      component: PhotoPagesView,
       props: true,
     },
     {

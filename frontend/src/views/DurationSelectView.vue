@@ -46,7 +46,7 @@ function handleBack() {
 
 <template>
   <WizardLayout
-    :step="6"
+    :step="7"
     :total-steps="WIZARD_TOTAL_STEPS"
     title="スライドの表示時間"
     :next-disabled="!canGoNext || isSubmitting"
