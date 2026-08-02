@@ -98,16 +98,22 @@ public class SlideshowVideoBuilder {
     }
 
     /**
-     * photoGroupsは1カット(1スライド)ごとに作成者が指定した写真のグループ(1〜{@value MAX_PHOTOS_PER_SLIDE}枚)。
-     * グルーピング自体はVideoJobService側(pageBreakAfterの並び)で確定済みのものをそのまま利用する。
+     * 1ページ(1カット)分の写真パスと、その並べ方パターン(null可、デフォルト配置を使う)。
      */
-    public void generateSlideshowVideo(List<List<Path>> photoGroups, Path outputPath, int slideDurationSec,
+    public record SlideGroup(List<Path> photoPaths, String layoutPattern) {
+    }
+
+    /**
+     * photoGroupsは1カット(1スライド)ごとに作成者が指定した写真のグループ(1〜{@value MAX_PHOTOS_PER_SLIDE}枚)。
+     * グルーピングと並べ方パターンはVideoJobService側(pageBreakAfter/layoutPatternの並び)で確定済みのものをそのまま利用する。
+     */
+    public void generateSlideshowVideo(List<SlideGroup> photoGroups, Path outputPath, int slideDurationSec,
                                         Path bgmPath, ThemeRenderer theme, String titleText) {
-        if (photoGroups.isEmpty() || photoGroups.stream().allMatch(List::isEmpty)) {
+        if (photoGroups.isEmpty() || photoGroups.stream().allMatch(g -> g.photoPaths().isEmpty())) {
             throw new VideoGenerationException("動画生成には1枚以上の写真が必要です");
         }
 
-        List<Path> flatImagePaths = photoGroups.stream().flatMap(List::stream).toList();
+        List<Path> flatImagePaths = photoGroups.stream().flatMap(g -> g.photoPaths().stream()).toList();
 
         List<String> args = new ArrayList<>();
         args.add("-y");
@@ -172,7 +178,7 @@ public class SlideshowVideoBuilder {
         return filter.toString();
     }
 
-    private String buildFullFilterComplex(List<List<Path>> slideGroups, int slideDurationSec, ThemeRenderer theme,
+    private String buildFullFilterComplex(List<SlideGroup> slideGroups, int slideDurationSec, ThemeRenderer theme,
                                            String titleText, ResolvedDecoration decoration) {
         StringBuilder filter = new StringBuilder();
 
@@ -245,7 +251,7 @@ public class SlideshowVideoBuilder {
      * 1〜{@value MAX_PHOTOS_PER_SLIDE}枚の写真をポラロイド風カードとして、
      * 背景装飾(または単色背景)の上に重ねて1スライド分の映像を作る。
      */
-    private void appendSlideGroupComposite(StringBuilder filter, List<Path> group, int[] inputIndexCursor,
+    private void appendSlideGroupComposite(StringBuilder filter, SlideGroup group, int[] inputIndexCursor,
                                             int slideIndex, int slideDurationSec, String frameColorHex,
                                             String backgroundLabel, String outputLabel) {
         String bgLabel;
@@ -258,11 +264,12 @@ public class SlideshowVideoBuilder {
                     .append("];");
         }
 
-        CardSize size = cardSizeFor(group.size());
+        int groupSize = group.photoPaths().size();
+        CardSize size = cardSizeFor(groupSize);
         String currentLabel = bgLabel;
-        for (int i = 0; i < group.size(); i++) {
+        for (int i = 0; i < groupSize; i++) {
             int inputIndex = inputIndexCursor[0]++;
-            CardLayout layout = pickCardLayout(slideIndex, i, group.size(), size);
+            CardLayout layout = pickCardLayout(slideIndex, i, groupSize, size, group.layoutPattern());
             String cardLabel = "card" + slideIndex + "_" + i;
 
             filter.append('[').append(inputIndex).append(":v]")
@@ -304,31 +311,53 @@ public class SlideshowVideoBuilder {
     }
 
     /**
-     * スライド内のカード配置(角度・位置)を決める。奇数番目のスライドでは左右を反転し、
+     * スライド内のカード配置(角度・位置)を決める。奇数番目のスライドでは配置を反転し、
      * 動画全体で同じ配置が単調に繰り返されないようにしている。
+     * layoutPatternは作成者がページ構成画面で選んだ並べ方(未指定ならグループ枚数ごとのデフォルト)。
+     * いずれのパターンも写真同士が重ならないシンプルな配置とする。
      */
-    private CardLayout pickCardLayout(int slideIndex, int photoIndexInGroup, int groupSize, CardSize size) {
+    private CardLayout pickCardLayout(int slideIndex, int photoIndexInGroup, int groupSize, CardSize size,
+                                       String layoutPattern) {
         boolean flip = slideIndex % 2 == 1;
 
         if (groupSize == 1) {
-            double angle = flip ? 4 : -4;
+            // TILTED(デフォルト): 少し傾ける / STRAIGHT: 傾けない
+            double angle = "STRAIGHT".equals(layoutPattern) ? 0 : (flip ? 4 : -4);
             return new CardLayout(angle, (VIDEO_WIDTH - size.width()) / 2, (VIDEO_HEIGHT - size.height()) / 2);
         }
 
         if (groupSize == 2) {
-            if (photoIndexInGroup == 0) {
-                return flip ? new CardLayout(7, 560, 60) : new CardLayout(-7, 110, 60);
+            int gap = 40;
+            int totalWidth = size.width() * 2 + gap;
+            int startX = (VIDEO_WIDTH - totalWidth) / 2;
+            int[] xPositions = {startX, startX + size.width() + gap};
+            int baseY = (VIDEO_HEIGHT - size.height()) / 2;
+
+            if ("OFFSET".equals(layoutPattern)) {
+                // 上下に少しずらす: 横位置はそのまま、片方を少し上に、もう片方を少し下にずらす
+                int shift = 50;
+                int[] yPositions = flip ? new int[] {baseY + shift, baseY - shift} : new int[] {baseY - shift, baseY + shift};
+                return new CardLayout(0, xPositions[photoIndexInGroup], yPositions[photoIndexInGroup]);
             }
-            return flip ? new CardLayout(-7, 110, 130) : new CardLayout(7, 560, 130);
+            // SIDE_BY_SIDE(デフォルト): ただ横に並べる
+            return new CardLayout(0, xPositions[photoIndexInGroup], baseY);
         }
 
-        // groupSize == 3: 扇状に少し重ねながら横に並べる(中央のカードを少し上に、両端を少し下げる)
-        int baseY = (VIDEO_HEIGHT - size.height()) / 2 - 25;
-        int[] xPositions = {90, (VIDEO_WIDTH - size.width()) / 2, VIDEO_WIDTH - size.width() - 90};
-        double[] angles = {-9, 2, 9};
-        int[] yOffsets = {50, 0, 50};
-        int index = flip ? (2 - photoIndexInGroup) : photoIndexInGroup;
-        return new CardLayout(angles[index], xPositions[index], baseY + yOffsets[index]);
+        // groupSize == 3
+        int gap = 20;
+        int totalWidth = size.width() * 3 + gap * 2;
+        int startX = (VIDEO_WIDTH - totalWidth) / 2;
+        int[] xPositions = {startX, startX + size.width() + gap, startX + (size.width() + gap) * 2};
+        int baseY = (VIDEO_HEIGHT - size.height()) / 2;
+
+        if ("ZIGZAG".equals(layoutPattern)) {
+            // 山谷に並べる: 横位置はそのまま、両端と中央を上下互い違いにずらす
+            int shift = 50;
+            int[] yOffsets = flip ? new int[] {shift, -shift, shift} : new int[] {-shift, shift, -shift};
+            return new CardLayout(0, xPositions[photoIndexInGroup], baseY + yOffsets[photoIndexInGroup]);
+        }
+        // SIDE_BY_SIDE(デフォルト): ただ横に並べる
+        return new CardLayout(0, xPositions[photoIndexInGroup], baseY);
     }
 
     private void appendFinalStage(StringBuilder filter, String inputLabel, ThemeRenderer theme, String titleText) {

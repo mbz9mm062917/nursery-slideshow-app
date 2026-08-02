@@ -1,0 +1,1 @@
+ALTER TABLE photos ADD COLUMN layout_pattern VARCHAR(20) NULL;

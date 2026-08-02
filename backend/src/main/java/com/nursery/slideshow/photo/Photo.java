@@ -47,6 +47,14 @@ public class Photo {
     @Column(name = "page_break_after", nullable = false)
     private boolean pageBreakAfter = true;
 
+    /**
+     * このPhotoがページの最後(pageBreakAfter=true)のとき、そのページ内の写真の並べ方を表すコード。
+     * 例: 1枚ページなら"TILTED"/"STRAIGHT"、2枚ページなら"SIDE_BY_SIDE"/"OFFSET"、
+     * 3枚ページなら"SIDE_BY_SIDE"/"ZIGZAG"。nullの場合はグループ枚数ごとのデフォルトパターンを使う。
+     */
+    @Column(name = "layout_pattern")
+    private String layoutPattern;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

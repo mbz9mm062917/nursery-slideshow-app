@@ -4,4 +4,5 @@ export interface Photo {
   displayOrder: number
   fileUrl: string
   pageBreakAfter: boolean
+  layoutPattern: string | null
 }

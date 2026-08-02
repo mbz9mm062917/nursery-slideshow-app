@@ -49,7 +49,7 @@ class VideoGenerationServiceTest {
     void shouldMarkJobCompletedWhenGenerationSucceeds() {
         // Arrange
         VideoGenerationInput input = new VideoGenerationInput(
-                List.of(List.of("projects/p/photos/a.png")), 3, "simple", null, "たのしい思い出");
+                List.of(new PhotoPageGroup(List.of("projects/p/photos/a.png"), null)), 3, "simple", null, "たのしい思い出");
         when(videoJobService.loadGenerationInput(JOB_ID)).thenReturn(input);
         when(storageService.resolveLocalPath(anyString())).thenReturn(Path.of("dummy-photo.png"));
         when(themeRendererResolver.resolve("simple")).thenReturn(mockThemeRenderer());
@@ -75,7 +75,7 @@ class VideoGenerationServiceTest {
     void shouldMarkJobFailedWhenGenerationThrowsException() {
         // Arrange
         VideoGenerationInput input = new VideoGenerationInput(
-                List.of(List.of("projects/p/photos/a.png")), 3, "simple", null, "たのしい思い出");
+                List.of(new PhotoPageGroup(List.of("projects/p/photos/a.png"), null)), 3, "simple", null, "たのしい思い出");
         when(videoJobService.loadGenerationInput(JOB_ID)).thenReturn(input);
         when(storageService.resolveLocalPath(anyString())).thenReturn(Path.of("dummy-photo.png"));
         when(themeRendererResolver.resolve("simple")).thenReturn(mockThemeRenderer());

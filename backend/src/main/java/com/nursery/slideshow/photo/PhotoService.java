@@ -30,6 +30,12 @@ public class PhotoService {
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png");
     private static final int MAX_PHOTOS_PER_PAGE = 3;
 
+    // グループの写真枚数ごとに選べるレイアウトパターン(いずれも写真同士が重ならない配置)
+    private static final Map<Integer, Set<String>> ALLOWED_LAYOUT_PATTERNS = Map.of(
+            1, Set.of("TILTED", "STRAIGHT"),
+            2, Set.of("SIDE_BY_SIDE", "OFFSET"),
+            3, Set.of("SIDE_BY_SIDE", "ZIGZAG"));
+
     // JPEG: FF D8 FF / PNG: 89 50 4E 47 0D 0A 1A 0A
     private static final byte[] JPEG_MAGIC_BYTES = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF};
     private static final byte[] PNG_MAGIC_BYTES =
@@ -105,17 +111,20 @@ public class PhotoService {
     /**
      * pageBreakAfterPhotoIdsに含まれる写真の直後でページ(1カット)を区切る。
      * 含まれない写真は次の写真と同じページにまとまる。1ページの上限はMAX_PHOTOS_PER_PAGE枚。
+     * layoutPatternsは、ページ最後の写真のIdをキーにそのページの並べ方コードを指定する(任意)。
      */
-    public List<PhotoResponse> updatePageBreaks(String projectId, List<Long> pageBreakAfterPhotoIds) {
+    public List<PhotoResponse> updatePageBreaks(String projectId, List<Long> pageBreakAfterPhotoIds,
+                                                 Map<Long, String> layoutPatterns) {
         if (pageBreakAfterPhotoIds == null) {
             throw new ValidationException("ページ区切りの内容が正しくありません");
         }
+        Map<Long, String> patterns = layoutPatterns != null ? layoutPatterns : Map.of();
 
         List<Photo> photos = photoRepository.findByProjectIdOrderByDisplayOrderAsc(projectId);
         Set<Long> existingIds = photos.stream().map(Photo::getId).collect(Collectors.toSet());
         Set<Long> breakIds = new HashSet<>(pageBreakAfterPhotoIds);
 
-        if (!existingIds.containsAll(breakIds)) {
+        if (!existingIds.containsAll(breakIds) || !existingIds.containsAll(patterns.keySet())) {
             throw new ValidationException("ページ区切りの内容が正しくありません");
         }
 
@@ -126,12 +135,21 @@ public class PhotoService {
                 throw new ValidationException("1ページに配置できる写真は" + MAX_PHOTOS_PER_PAGE + "枚までです");
             }
             if (breakIds.contains(photo.getId())) {
+                String pattern = patterns.get(photo.getId());
+                if (pattern != null) {
+                    Set<String> allowed = ALLOWED_LAYOUT_PATTERNS.get(groupSize);
+                    if (allowed == null || !allowed.contains(pattern)) {
+                        throw new ValidationException("レイアウトの指定が正しくありません");
+                    }
+                }
                 groupSize = 0;
             }
         }
 
         for (Photo photo : photos) {
-            photo.setPageBreakAfter(breakIds.contains(photo.getId()));
+            boolean isPageEnd = breakIds.contains(photo.getId());
+            photo.setPageBreakAfter(isPageEnd);
+            photo.setLayoutPattern(isPageEnd ? patterns.get(photo.getId()) : null);
         }
 
         return list(projectId);
@@ -209,7 +227,8 @@ public class PhotoService {
                 photo.getOriginalFileName(),
                 photo.getDisplayOrder(),
                 "/api/photos/" + photo.getId() + "/file",
-                photo.isPageBreakAfter()
+                photo.isPageBreakAfter(),
+                photo.getLayoutPattern()
         );
     }
 }

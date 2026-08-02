@@ -92,7 +92,7 @@ public class VideoJobService {
         Project project = job.getProject();
 
         List<Photo> photos = photoRepository.findByProjectIdOrderByDisplayOrderAsc(project.getId());
-        List<List<String>> photoGroups = groupByPageBreak(photos);
+        List<PhotoPageGroup> photoGroups = groupByPageBreak(photos);
         String bgmStorageKey = project.getBgm() != null ? project.getBgm().getStorageKey() : null;
 
         return new VideoGenerationInput(
@@ -105,19 +105,20 @@ public class VideoJobService {
 
     /**
      * 表示順に並んだ写真を、pageBreakAfterの位置で1ページ(1カット)ごとのグループに分割する。
+     * 各グループのlayoutPatternは、そのページ最後の写真(pageBreakAfter=true)に保存された値を使う。
      */
-    private List<List<String>> groupByPageBreak(List<Photo> photos) {
-        List<List<String>> groups = new ArrayList<>();
-        List<String> currentGroup = new ArrayList<>();
+    private List<PhotoPageGroup> groupByPageBreak(List<Photo> photos) {
+        List<PhotoPageGroup> groups = new ArrayList<>();
+        List<String> currentKeys = new ArrayList<>();
         for (Photo photo : photos) {
-            currentGroup.add(photo.getStorageKey());
+            currentKeys.add(photo.getStorageKey());
             if (photo.isPageBreakAfter()) {
-                groups.add(currentGroup);
-                currentGroup = new ArrayList<>();
+                groups.add(new PhotoPageGroup(currentKeys, photo.getLayoutPattern()));
+                currentKeys = new ArrayList<>();
             }
         }
-        if (!currentGroup.isEmpty()) {
-            groups.add(currentGroup);
+        if (!currentKeys.isEmpty()) {
+            groups.add(new PhotoPageGroup(currentKeys, null));
         }
         return groups;
     }

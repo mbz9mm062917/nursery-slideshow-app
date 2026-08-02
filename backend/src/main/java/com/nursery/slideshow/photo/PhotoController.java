@@ -46,7 +46,7 @@ public class PhotoController {
     @PutMapping("/api/projects/{projectId}/photos/page-breaks")
     public List<PhotoResponse> updatePageBreaks(@PathVariable String projectId,
                                                  @RequestBody PhotoPageBreakRequest request) {
-        return photoService.updatePageBreaks(projectId, request.pageBreakAfterPhotoIds());
+        return photoService.updatePageBreaks(projectId, request.pageBreakAfterPhotoIds(), request.layoutPatterns());
     }
 
     @DeleteMapping("/api/photos/{photoId}")

@@ -93,7 +93,7 @@ public class DevController {
             throw new ResourceNotFoundException("このプロジェクトには写真がありません");
         }
 
-        List<List<Path>> photoGroups = groupByPageBreak(photos);
+        List<SlideshowVideoBuilder.SlideGroup> photoGroups = groupByPageBreak(photos);
 
         int slideDurationSec = project.getSlideDurationSec() != null ? project.getSlideDurationSec() : 3;
 
@@ -124,18 +124,18 @@ public class DevController {
      * 表示順に並んだ写真を、pageBreakAfterの位置で1ページ(1カット)ごとのグループに分割する。
      * VideoJobService#groupByPageBreakと同等の処理(dev診断用エンドポイントのため個別に保持)。
      */
-    private List<List<Path>> groupByPageBreak(List<Photo> photos) {
-        List<List<Path>> groups = new ArrayList<>();
-        List<Path> currentGroup = new ArrayList<>();
+    private List<SlideshowVideoBuilder.SlideGroup> groupByPageBreak(List<Photo> photos) {
+        List<SlideshowVideoBuilder.SlideGroup> groups = new ArrayList<>();
+        List<Path> currentPaths = new ArrayList<>();
         for (Photo photo : photos) {
-            currentGroup.add(storageService.resolveLocalPath(photo.getStorageKey()));
+            currentPaths.add(storageService.resolveLocalPath(photo.getStorageKey()));
             if (photo.isPageBreakAfter()) {
-                groups.add(currentGroup);
-                currentGroup = new ArrayList<>();
+                groups.add(new SlideshowVideoBuilder.SlideGroup(currentPaths, photo.getLayoutPattern()));
+                currentPaths = new ArrayList<>();
             }
         }
-        if (!currentGroup.isEmpty()) {
-            groups.add(currentGroup);
+        if (!currentPaths.isEmpty()) {
+            groups.add(new SlideshowVideoBuilder.SlideGroup(currentPaths, null));
         }
         return groups;
     }

@@ -11,6 +11,21 @@ import type { Photo } from '../types/photo'
 
 const MAX_PHOTOS_PER_PAGE = 3
 
+const LAYOUT_OPTIONS: Record<number, { value: string; label: string }[]> = {
+  1: [
+    { value: 'TILTED', label: '傾きあり' },
+    { value: 'STRAIGHT', label: '傾きなし' },
+  ],
+  2: [
+    { value: 'SIDE_BY_SIDE', label: '横に並べる' },
+    { value: 'OFFSET', label: '上下に少しずらす' },
+  ],
+  3: [
+    { value: 'SIDE_BY_SIDE', label: '横に並べる' },
+    { value: 'ZIGZAG', label: '山谷に並べる' },
+  ],
+}
+
 const props = defineProps<{ projectId: string }>()
 const router = useRouter()
 
@@ -74,7 +89,28 @@ function toggleDivider(index: number) {
     // 現在は同じページ → 分ける
     photo.pageBreakAfter = true
   }
+  // ページ構成が変わると各ページの枚数が変わり、選択済みの並べ方が無効になりうるためリセットする
+  localPhotos.value.forEach((p) => {
+    p.layoutPattern = null
+  })
   errorMessage.value = ''
+}
+
+function layoutOptionsFor(pageLength: number) {
+  return LAYOUT_OPTIONS[pageLength] ?? []
+}
+
+function selectedLayoutPattern(page: Photo[]): string {
+  const options = layoutOptionsFor(page.length)
+  if (options.length === 0) {
+    return ''
+  }
+  const lastPhoto = page[page.length - 1]
+  return lastPhoto.layoutPattern ?? options[0].value
+}
+
+function selectLayoutPattern(page: Photo[], value: string) {
+  page[page.length - 1].layoutPattern = value
 }
 
 function globalIndexOf(photo: Photo): number {
@@ -89,7 +125,13 @@ async function handleNext() {
   errorMessage.value = ''
   try {
     const pageBreakAfterPhotoIds = localPhotos.value.filter((p) => p.pageBreakAfter).map((p) => p.id)
-    await photoApi.updatePageBreaks(props.projectId, pageBreakAfterPhotoIds)
+    const layoutPatterns: Record<number, string> = {}
+    for (const photo of localPhotos.value) {
+      if (photo.pageBreakAfter && photo.layoutPattern) {
+        layoutPatterns[photo.id] = photo.layoutPattern
+      }
+    }
+    await photoApi.updatePageBreaks(props.projectId, pageBreakAfterPhotoIds, layoutPatterns)
     router.push({ name: 'title-input', params: { projectId: props.projectId } })
   } catch (error) {
     errorMessage.value = extractErrorMessage(error, 'ページ構成の保存に失敗しました')
@@ -117,7 +159,7 @@ onMounted(loadPhotos)
     <ErrorBanner v-if="errorMessage" :message="errorMessage" />
     <p class="muted">
       1ページに入れる写真をまとめられます(最大{{ MAX_PHOTOS_PER_PAGE }}枚まで)。「つなげる」で同じページに、
-      「分ける」で別のページに分けられます。
+      「分ける」で別のページに分けられます。各ページで写真の並べ方も選べます。
     </p>
     <div class="pages-flow">
       <template v-for="(page, pageIndex) in pages" :key="pageIndex">
@@ -135,6 +177,18 @@ onMounted(loadPhotos)
                 ✂ 分ける
               </button>
             </template>
+          </div>
+          <div v-if="layoutOptionsFor(page.length).length > 0" class="layout-options">
+            <button
+              v-for="option in layoutOptionsFor(page.length)"
+              :key="option.value"
+              type="button"
+              class="layout-option"
+              :class="{ selected: selectedLayoutPattern(page) === option.value }"
+              @click="selectLayoutPattern(page, option.value)"
+            >
+              {{ option.label }}
+            </button>
           </div>
         </div>
         <button
@@ -183,6 +237,28 @@ onMounted(loadPhotos)
   height: 90px;
   object-fit: cover;
   border-radius: 6px;
+}
+
+.layout-options {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.layout-option {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.layout-option.selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: bold;
 }
 
 .split-button {
