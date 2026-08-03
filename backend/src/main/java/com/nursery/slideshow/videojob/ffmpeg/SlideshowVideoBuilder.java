@@ -289,7 +289,7 @@ public class SlideshowVideoBuilder {
             String nextLabel = "slide" + slideIndex + "_ov" + i;
             filter.append('[').append(currentLabel).append("][").append(cardLabel).append(']')
                     .append("overlay=x=").append(slotCenterX).append("-overlay_w/2:y=").append(slotCenterY)
-                    .append("-overlay_h/2")
+                    .append("-overlay_h/2:shortest=1")
                     .append('[').append(nextLabel).append("];");
             currentLabel = nextLabel;
         }
