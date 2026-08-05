@@ -103,6 +103,9 @@ const emit = defineEmits<{ back: []; next: [] }>()
 .wizard-content {
   flex: 1;
   padding: 12px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .wizard-footer {

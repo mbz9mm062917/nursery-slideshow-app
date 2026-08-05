@@ -24,8 +24,6 @@ async function handleCreate() {
 
 <template>
   <main class="home">
-    <div class="home-blob home-blob-a" aria-hidden="true"></div>
-    <div class="home-blob home-blob-b" aria-hidden="true"></div>
     <div class="home-card card">
       <h1>保育園スライドショー</h1>
       <button class="btn-pill" :disabled="isCreating" @click="handleCreate">
@@ -38,18 +36,14 @@ async function handleCreate() {
 
 <style scoped>
 .home {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 70vh;
-  overflow: hidden;
   padding: 20px;
 }
 
 .home-card {
-  position: relative;
-  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -65,28 +59,5 @@ async function handleCreate() {
 
 .home-card .btn-pill {
   font-size: 16px;
-}
-
-.home-blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(50px);
-  opacity: 0.35;
-}
-
-.home-blob-a {
-  width: 240px;
-  height: 240px;
-  background: var(--accent-yellow);
-  top: -70px;
-  right: -60px;
-}
-
-.home-blob-b {
-  width: 180px;
-  height: 180px;
-  background: var(--accent-mint);
-  bottom: -50px;
-  left: -60px;
 }
 </style>
