@@ -64,7 +64,8 @@ public class VideoGenerationService {
             workDir = Files.createTempDirectory("video-job-" + jobId);
             Path outputPath = workDir.resolve("output.mp4");
             slideshowVideoBuilder.generateSlideshowVideo(
-                    photoGroups, outputPath, input.slideDurationSec(), bgmPath, theme, input.title());
+                    photoGroups, outputPath, input.slideDurationSec(), bgmPath, theme, input.title(),
+                    percent -> videoJobService.updateProgress(jobId, percent));
 
             String outputStorageKey;
             try (InputStream in = Files.newInputStream(outputPath)) {

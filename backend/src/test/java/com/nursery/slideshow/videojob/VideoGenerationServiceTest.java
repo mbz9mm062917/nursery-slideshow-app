@@ -14,6 +14,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.function.IntConsumer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -59,7 +60,8 @@ class VideoGenerationServiceTest {
             Files.createFile(outputPath);
             return null;
         }).when(slideshowVideoBuilder).generateSlideshowVideo(
-                anyList(), any(Path.class), anyInt(), nullable(Path.class), any(ThemeRenderer.class), anyString());
+                anyList(), any(Path.class), anyInt(), nullable(Path.class), any(ThemeRenderer.class), anyString(),
+                any(IntConsumer.class));
         when(storageService.store(eq("videos"), anyString(), any(InputStream.class)))
                 .thenReturn("videos/output.mp4");
 
@@ -83,7 +85,8 @@ class VideoGenerationServiceTest {
         when(themeRendererResolver.resolve("simple")).thenReturn(mockThemeRenderer());
         doThrow(new VideoGenerationException("FFmpegの実行に失敗しました(exit=1)"))
                 .when(slideshowVideoBuilder).generateSlideshowVideo(
-                        anyList(), any(Path.class), anyInt(), nullable(Path.class), any(ThemeRenderer.class), anyString());
+                        anyList(), any(Path.class), anyInt(), nullable(Path.class), any(ThemeRenderer.class), anyString(),
+                        any(IntConsumer.class));
 
         // Act
         videoGenerationService.onVideoGenerationRequested(new VideoGenerationRequestedEvent(JOB_ID));

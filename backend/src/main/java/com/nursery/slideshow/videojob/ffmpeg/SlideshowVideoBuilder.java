@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntConsumer;
 
 @Service
 public class SlideshowVideoBuilder {
@@ -106,6 +107,16 @@ public class SlideshowVideoBuilder {
      */
     public void generateSlideshowVideo(List<SlideGroup> photoGroups, Path outputPath, int slideDurationSec,
                                         Path bgmPath, ThemeRenderer theme, String titleText) {
+        generateSlideshowVideo(photoGroups, outputPath, slideDurationSec, bgmPath, theme, titleText, percent -> { });
+    }
+
+    /**
+     * onProgressPercentには、ffmpegの実エンコード時間を動画の合計尺で割った進捗(0〜99)が
+     * 都度通知される(動画作成中画面のプログレスバーに反映するため)。
+     */
+    public void generateSlideshowVideo(List<SlideGroup> photoGroups, Path outputPath, int slideDurationSec,
+                                        Path bgmPath, ThemeRenderer theme, String titleText,
+                                        IntConsumer onProgressPercent) {
         if (photoGroups.isEmpty() || photoGroups.stream().allMatch(g -> g.photos().isEmpty())) {
             throw new VideoGenerationException("動画生成には1枚以上の写真が必要です");
         }
@@ -173,7 +184,10 @@ public class SlideshowVideoBuilder {
         }
         args.add(outputPath.toString());
 
-        ffmpegExecutor.run(args);
+        ffmpegExecutor.run(args, encodedSeconds -> {
+            int percent = (int) Math.floor(encodedSeconds / totalDurationSec * 100);
+            onProgressPercent.accept(Math.max(0, Math.min(percent, 99)));
+        });
     }
 
     private String buildSingleImageFilterComplex(ThemeRenderer theme, String titleText, ResolvedDecoration decoration) {

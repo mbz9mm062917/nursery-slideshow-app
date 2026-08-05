@@ -129,6 +129,16 @@ public class VideoJobService {
         job.setStartedAt(LocalDateTime.now());
     }
 
+    /**
+     * ffmpegの実際のエンコード進捗(0〜99)を反映する。100%はmarkCompletedで
+     * 動画の保存まで完了した時点で初めて設定する(エンコードが終わってもまだ
+     * 保存処理が残っているため、ここでは99%までしか進めない)。
+     */
+    public void updateProgress(Long jobId, int progress) {
+        VideoJob job = findOrThrow(jobId);
+        job.setProgress(Math.min(progress, 99));
+    }
+
     public void markCompleted(Long jobId, String outputStorageKey) {
         VideoJob job = findOrThrow(jobId);
         job.setStatus(VideoJobStatus.COMPLETED);
