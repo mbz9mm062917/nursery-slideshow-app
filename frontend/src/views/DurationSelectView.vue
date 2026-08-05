@@ -79,14 +79,17 @@ function handleBack() {
   flex: 1;
   padding: 24px;
   font-size: 20px;
-  border: 2px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
   color: var(--text);
 }
 
 .duration-button.selected {
-  border-color: var(--accent);
-  color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  box-shadow: var(--shadow-btn);
 }
 </style>

@@ -11,7 +11,7 @@ defineProps<{ message: string }>()
   background: #fdecea;
   color: var(--error);
   border: 1px solid var(--error);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 10px 14px;
   margin-bottom: 16px;
 }

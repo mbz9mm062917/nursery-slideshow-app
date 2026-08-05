@@ -68,7 +68,7 @@ function handleBack() {
     @next="handleNext"
   >
     <ErrorBanner v-if="errorMessage" :message="errorMessage" />
-    <dl v-if="project" class="summary">
+    <dl v-if="project" class="summary card">
       <dt>タイトル</dt>
       <dd>{{ project.title }}</dd>
       <dt>テーマ</dt>
@@ -95,12 +95,13 @@ function handleBack() {
 .summary {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 8px 16px;
-  margin-bottom: 24px;
+  gap: 10px 16px;
+  margin-bottom: 20px;
 }
 
 .summary dt {
   color: var(--text-muted);
+  font-weight: 600;
 }
 
 .summary dd {
@@ -110,13 +111,14 @@ function handleBack() {
 .preview-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .preview-grid img {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
 }
 </style>

@@ -38,17 +38,24 @@ watch(
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  border: 2px solid var(--border);
-  border-radius: 8px;
+  padding: 14px 18px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
   cursor: pointer;
 }
 
 .bgm-option.selected {
-  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), var(--shadow-card);
+  background: var(--accent-soft);
 }
 
 .name {
   flex: 1;
+  font-weight: 600;
+}
+
+.bgm-option button {
+  border-radius: var(--radius-pill);
 }
 </style>

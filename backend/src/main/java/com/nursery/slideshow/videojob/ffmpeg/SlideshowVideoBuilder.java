@@ -114,13 +114,20 @@ public class SlideshowVideoBuilder {
 
         List<String> args = new ArrayList<>();
         args.add("-y");
-        for (PhotoTile tile : flatTiles) {
-            args.add("-loop");
-            args.add("1");
-            args.add("-t");
-            args.add(String.valueOf(slideDurationSec));
-            args.add("-i");
-            args.add(tile.path().toString());
+        for (int g = 0; g < photoGroups.size(); g++) {
+            // 最後以外のスライドは、次のスライドへのクロスフェードで末尾のTRANSITION_DURATION_SEC秒分を
+            // 追加で使うため、その分だけ長く入力を用意しておく(でないとスライド自体の表示時間が
+            // transitionの分だけ短くなり、合計尺が「枚数×秒数」からずれてしまう)。
+            boolean isLastGroup = g == photoGroups.size() - 1;
+            double tileDurationSec = isLastGroup ? slideDurationSec : slideDurationSec + TRANSITION_DURATION_SEC;
+            for (PhotoTile tile : photoGroups.get(g).photos()) {
+                args.add("-loop");
+                args.add("1");
+                args.add("-t");
+                args.add(String.valueOf(tileDurationSec));
+                args.add("-i");
+                args.add(tile.path().toString());
+            }
         }
 
         int nextInputIndex = flatTiles.size();
@@ -134,8 +141,7 @@ public class SlideshowVideoBuilder {
             nextInputIndex++;
         }
 
-        double totalDurationSec = photoGroups.size() * slideDurationSec
-                - (photoGroups.size() - 1) * TRANSITION_DURATION_SEC;
+        double totalDurationSec = (double) photoGroups.size() * slideDurationSec;
 
         ResolvedDecoration decoration = resolveDecoration(theme, nextInputIndex);
         addDecorationInputs(args, decoration, totalDurationSec);
@@ -192,7 +198,11 @@ public class SlideshowVideoBuilder {
         int[] inputIndexCursor = {0};
         int[] ovalMaskCursor = {0};
         for (int g = 0; g < slideGroups.size(); g++) {
-            appendSlideGroupComposite(filter, slideGroups.get(g), inputIndexCursor, g, slideDurationSec,
+            // 写真タイル側の入力尺(-t)と同じルールで、最後以外のスライドはクロスフェード分だけ
+            // 単色背景の尺も延ばしておく(でないとoverlayのshortest=1で写真側の延長分が切り詰められてしまう)。
+            boolean isLastGroup = g == slideGroups.size() - 1;
+            double groupDurationSec = isLastGroup ? slideDurationSec : slideDurationSec + TRANSITION_DURATION_SEC;
+            appendSlideGroupComposite(filter, slideGroups.get(g), inputIndexCursor, g, groupDurationSec,
                     theme.frameColorHex(), backgroundLabels[g], "v" + g, ovalMaskLabels, ovalMaskCursor);
         }
 
@@ -201,7 +211,10 @@ public class SlideshowVideoBuilder {
             finalSlideLabel = "v0";
         } else {
             String previousLabel = "v0";
-            double offset = slideDurationSec - TRANSITION_DURATION_SEC;
+            // 各スライドは丸ごとslideDurationSec秒表示され、その末尾のTRANSITION_DURATION_SEC秒を使って
+            // 次のスライドへクロスフェードする(表示時間を削って重ねるのではなく、表示時間はそのままに
+            // 末尾で滲むように重ねるため、合計尺は常に「枚数×秒数」に一致する)。
+            double offset = slideDurationSec;
             for (int g = 1; g < slideGroups.size(); g++) {
                 String currentLabel = "v" + g;
                 String outputLabel = (g == slideGroups.size() - 1) ? "vbase" : "x" + g;
@@ -211,7 +224,7 @@ public class SlideshowVideoBuilder {
                         .append(":offset=").append(offset)
                         .append('[').append(outputLabel).append("];");
                 previousLabel = outputLabel;
-                offset += slideDurationSec - TRANSITION_DURATION_SEC;
+                offset += slideDurationSec;
             }
             finalSlideLabel = previousLabel;
         }
@@ -258,7 +271,7 @@ public class SlideshowVideoBuilder {
      * 背景装飾(または単色背景)の上に重ねて1スライド分の映像を作る。
      */
     private void appendSlideGroupComposite(StringBuilder filter, SlideGroup group, int[] inputIndexCursor,
-                                            int slideIndex, int slideDurationSec, String frameColorHex,
+                                            int slideIndex, double slideDurationSec, String frameColorHex,
                                             String backgroundLabel, String outputLabel,
                                             String[] ovalMaskLabels, int[] ovalMaskCursor) {
         String bgLabel;
@@ -397,7 +410,7 @@ public class SlideshowVideoBuilder {
         filter.append('[').append(photoPassthroughLabel).append(']').append("format=rgba[")
                 .append(rgbaLabel).append("];");
         filter.append('[').append(rgbaLabel).append("][").append(maskScaledLabel).append(']')
-                .append("alphamerge[").append(maskedLabel).append("];");
+                .append("alphamerge=shortest=1[").append(maskedLabel).append("];");
         return maskedLabel;
     }
 

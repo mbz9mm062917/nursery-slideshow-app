@@ -23,6 +23,20 @@ const emit = defineEmits<{ back: []; next: [] }>()
     <header class="wizard-header">
       <span class="wizard-step">STEP {{ step }} / {{ totalSteps }}</span>
       <h1>{{ title }}</h1>
+      <div
+        class="wizard-dots"
+        role="progressbar"
+        :aria-valuenow="step"
+        :aria-valuemin="1"
+        :aria-valuemax="totalSteps"
+      >
+        <span
+          v-for="n in totalSteps"
+          :key="n"
+          class="dot"
+          :class="{ done: n < step, current: n === step }"
+        />
+      </div>
     </header>
 
     <section class="wizard-content">
@@ -30,9 +44,9 @@ const emit = defineEmits<{ back: []; next: [] }>()
     </section>
 
     <footer class="wizard-footer">
-      <button v-if="showBack" type="button" @click="emit('back')">← 戻る</button>
+      <button v-if="showBack" type="button" class="btn-pill ghost" @click="emit('back')">← 戻る</button>
       <span v-else />
-      <button type="button" class="primary" :disabled="nextDisabled" @click="emit('next')">
+      <button type="button" class="btn-pill" :disabled="nextDisabled" @click="emit('next')">
         {{ nextLabel }}
       </button>
     </footer>
@@ -47,23 +61,48 @@ const emit = defineEmits<{ back: []; next: [] }>()
 }
 
 .wizard-header {
-  padding: 20px 20px 12px;
-  border-bottom: 1px solid var(--border);
+  padding: 20px 20px 16px;
 }
 
 .wizard-step {
-  font-size: 13px;
-  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
 }
 
 .wizard-header h1 {
-  font-size: 20px;
-  margin: 4px 0 0;
+  font-size: 21px;
+  margin: 6px 0 0;
+}
+
+.wizard-dots {
+  display: flex;
+  gap: 5px;
+  margin-top: 14px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+  transition: width 0.15s ease, background 0.15s ease;
+}
+
+.dot.done {
+  background: var(--accent);
+}
+
+.dot.current {
+  width: 18px;
+  background: var(--accent);
 }
 
 .wizard-content {
   flex: 1;
-  padding: 24px 20px;
+  padding: 12px 20px 24px;
 }
 
 .wizard-footer {
@@ -71,16 +110,8 @@ const emit = defineEmits<{ back: []; next: [] }>()
   bottom: 0;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 16px 20px;
-  border-top: 1px solid var(--border);
   background: var(--bg);
-}
-
-.wizard-footer .primary {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  padding: 10px 28px;
-  font-size: 16px;
 }
 </style>

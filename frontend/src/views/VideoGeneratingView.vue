@@ -87,7 +87,7 @@ onUnmounted(stopPolling)
   <div class="generating">
     <template v-if="errorMessage">
       <ErrorBanner :message="errorMessage" />
-      <button type="button" @click="handleRetry">もう一度作成する</button>
+      <button type="button" class="btn-pill" @click="handleRetry">もう一度作成する</button>
     </template>
     <template v-else>
       <h1>動画を作成しています...</h1>
@@ -106,7 +106,7 @@ onUnmounted(stopPolling)
   align-items: center;
   justify-content: center;
   min-height: 80vh;
-  gap: 16px;
+  gap: 18px;
   text-align: center;
   padding: 20px;
 }
@@ -114,15 +114,16 @@ onUnmounted(stopPolling)
 .progress-bar {
   width: 320px;
   max-width: 100%;
-  height: 12px;
-  border-radius: 6px;
+  height: 10px;
+  border-radius: var(--radius-pill);
   background: var(--border);
   overflow: hidden;
 }
 
 .progress-bar-fill {
   height: 100%;
-  background: var(--accent);
+  background: linear-gradient(90deg, var(--accent), var(--accent-mint));
+  border-radius: var(--radius-pill);
   transition: width 0.3s ease;
 }
 </style>

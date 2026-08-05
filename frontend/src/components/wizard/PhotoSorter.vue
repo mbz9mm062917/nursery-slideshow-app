@@ -61,9 +61,9 @@ function handleDrop(targetIndex: number) {
 .sorter-item {
   position: relative;
   aspect-ratio: 1;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
   cursor: grab;
 }
 
@@ -77,14 +77,15 @@ function handleDrop(targetIndex: number) {
 
 .order-badge {
   position: absolute;
-  top: 4px;
-  left: 4px;
+  top: 6px;
+  left: 6px;
   min-width: 20px;
   text-align: center;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.6);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
   color: #fff;
   font-size: 12px;
-  padding: 2px 6px;
+  font-weight: 700;
+  padding: 2px 7px;
 }
 </style>

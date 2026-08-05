@@ -31,22 +31,23 @@ const imageFailed = ref(false)
   align-items: center;
   gap: 8px;
   padding: 8px;
-  border: 2px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
   cursor: pointer;
 }
 
 .theme-card.selected {
-  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft), 0 0 0 1px var(--accent);
 }
 
 .thumbnail {
   width: 100%;
   aspect-ratio: 1;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  background: var(--code-bg, #f4f3ec);
+  background: var(--accent-soft);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -52,7 +52,22 @@ function handleBack() {
     @next="handleNext"
   >
     <ErrorBanner v-if="errorMessage" :message="errorMessage" />
-    <input v-model="title" type="text" placeholder="例: さくら組 運動会" :maxlength="TITLE_MAX_LENGTH" />
-    <p class="muted">{{ title.length }} / {{ TITLE_MAX_LENGTH }}文字</p>
+    <div class="card title-card">
+      <input v-model="title" type="text" placeholder="例: さくら組 運動会" :maxlength="TITLE_MAX_LENGTH" />
+      <p class="muted">{{ title.length }} / {{ TITLE_MAX_LENGTH }}文字</p>
+    </div>
   </WizardLayout>
 </template>
+
+<style scoped>
+.title-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.title-card input {
+  font-size: 17px;
+  padding: 12px 14px;
+}
+</style>

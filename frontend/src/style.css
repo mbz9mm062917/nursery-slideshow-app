@@ -1,12 +1,25 @@
 :root {
   --text: #2d2a32;
   --text-muted: #6b6375;
-  --bg: #fff;
-  --border: #e5e4e7;
+  --bg: #fffdf8;
+  --surface: #ffffff;
+  --border: #ece7f7;
   --accent: #7c3aed;
+  --accent-soft: #f1e9fe;
+  --accent-yellow: #ffc145;
+  --accent-mint: #4fbe9e;
+  --accent-coral: #ff6f6f;
   --error: #c0392b;
 
-  font: 16px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 6px 16px rgba(124, 58, 237, 0.08);
+  --shadow-btn: 0 6px 14px rgba(124, 58, 237, 0.32);
+
+  font: 16px/1.6 system-ui, 'Segoe UI', 'Yu Gothic UI', 'Hiragino Sans', Roboto, sans-serif;
   color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
@@ -14,11 +27,15 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #e5e4e7;
-    --text-muted: #9ca3af;
-    --bg: #16171d;
-    --border: #2e303a;
+    --text: #ece9f4;
+    --text-muted: #a69fb5;
+    --bg: #1b1720;
+    --surface: #251f2c;
+    --border: #382f45;
     --accent: #c084fc;
+    --accent-soft: #362a46;
+    --shadow-card: 0 6px 16px rgba(0, 0, 0, 0.35);
+    --shadow-btn: 0 6px 14px rgba(192, 132, 252, 0.28);
   }
 }
 
@@ -45,8 +62,8 @@ button {
   font: inherit;
   padding: 6px 14px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
   color: var(--text);
   cursor: pointer;
 }
@@ -63,10 +80,10 @@ button:disabled {
 input,
 select {
   font: inherit;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
   color: var(--text);
 }
 
@@ -81,7 +98,7 @@ ul {
 
 li {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 16px;
 }
 
@@ -102,4 +119,83 @@ form {
 
 .muted {
   color: var(--text-muted);
+}
+
+/*
+ * 共通コンポーネント語彙(Direction C: まる・さんかく・しかく)。
+ * 各画面ごとにボタンやカードのCSSを再実装しなくても済むよう、
+ * トークン(--radius-*, --shadow-*, --accent*)を組み合わせた共通クラスをここに集約する。
+ */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 20px;
+}
+
+.btn-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 12px 26px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: var(--shadow-btn);
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.btn-pill:hover:not(:disabled) {
+  border-color: transparent;
+  transform: translateY(-1px);
+}
+
+.btn-pill:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.btn-pill.ghost {
+  background: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+  padding: 12px 14px;
+}
+
+.btn-pill.ghost:hover:not(:disabled) {
+  color: var(--accent);
+  transform: none;
+}
+
+.chip {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chip:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.chip.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 700;
 }

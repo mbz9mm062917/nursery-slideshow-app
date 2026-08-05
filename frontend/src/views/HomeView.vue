@@ -24,31 +24,69 @@ async function handleCreate() {
 
 <template>
   <main class="home">
-    <h1>保育園スライドショー</h1>
-    <button class="primary" :disabled="isCreating" @click="handleCreate">
-      {{ isCreating ? '準備中...' : '＋ 新しいスライドショーを作る' }}
-    </button>
-    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+    <div class="home-blob home-blob-a" aria-hidden="true"></div>
+    <div class="home-blob home-blob-b" aria-hidden="true"></div>
+    <div class="home-card card">
+      <h1>保育園スライドショー</h1>
+      <button class="btn-pill" :disabled="isCreating" @click="handleCreate">
+        {{ isCreating ? '準備中...' : '＋ 新しいスライドショーを作る' }}
+      </button>
+      <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+    </div>
   </main>
 </template>
 
 <style scoped>
 .home {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 70vh;
+  overflow: hidden;
+  padding: 20px;
+}
+
+.home-card {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  min-height: 60vh;
-  gap: 16px;
+  gap: 20px;
+  padding: 44px 36px;
   text-align: center;
 }
 
-.primary {
-  font-size: 18px;
-  padding: 16px 32px;
-  border-radius: 10px;
-  background: var(--accent);
-  color: #fff;
-  border: none;
+.home-card h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.home-card .btn-pill {
+  font-size: 16px;
+}
+
+.home-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(50px);
+  opacity: 0.35;
+}
+
+.home-blob-a {
+  width: 240px;
+  height: 240px;
+  background: var(--accent-yellow);
+  top: -70px;
+  right: -60px;
+}
+
+.home-blob-b {
+  width: 180px;
+  height: 180px;
+  background: var(--accent-mint);
+  bottom: -50px;
+  left: -60px;
 }
 </style>

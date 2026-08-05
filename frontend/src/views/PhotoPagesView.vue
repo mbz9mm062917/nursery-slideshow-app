@@ -256,14 +256,16 @@ onMounted(loadPhotos)
 }
 
 .page-box {
-  border: 2px solid var(--accent);
-  border-radius: 10px;
-  padding: 10px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 14px;
 }
 
 .page-label {
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   font-size: 12px;
+  font-weight: 700;
   color: var(--text-muted);
 }
 
@@ -287,11 +289,11 @@ onMounted(loadPhotos)
 }
 
 .page-thumb.shape-rectangle {
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 
 .page-thumb.shape-rounded {
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .page-thumb.shape-circle,
@@ -305,19 +307,22 @@ onMounted(loadPhotos)
 }
 
 .crop-shape-option {
-  font-size: 11px;
-  padding: 3px 6px;
-  border-radius: 12px;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text-muted);
   white-space: nowrap;
 }
 
 .crop-shape-option.selected {
+  background: var(--accent);
   border-color: var(--accent);
-  color: var(--accent);
-  font-weight: bold;
+  color: #fff;
+  font-weight: 700;
 }
 
 .layout-options {
@@ -327,37 +332,41 @@ onMounted(loadPhotos)
 }
 
 .layout-option {
+  font: inherit;
   font-size: 12px;
-  padding: 6px 10px;
-  border-radius: 20px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text-muted);
   white-space: nowrap;
 }
 
 .layout-option.selected {
+  background: var(--accent);
   border-color: var(--accent);
-  color: var(--accent);
-  font-weight: bold;
+  color: #fff;
+  font-weight: 700;
 }
 
 .split-button {
   font-size: 12px;
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-pill);
   border: 1px dashed var(--border);
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text-muted);
   white-space: nowrap;
 }
 
 .merge-button {
   font-size: 12px;
-  padding: 8px 10px;
-  border-radius: 20px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text);
   white-space: nowrap;
 }

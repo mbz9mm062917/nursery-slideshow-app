@@ -26,9 +26,9 @@ const emit = defineEmits<{ delete: [photoId: number] }>()
 .thumbnail {
   position: relative;
   aspect-ratio: 1;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
 }
 
 .thumbnail img {
