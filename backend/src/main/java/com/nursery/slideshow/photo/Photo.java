@@ -13,12 +13,22 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.DynamicUpdate;
 
 import java.time.LocalDateTime;
 
+/**
+ * ページ区切り(pageBreakAfter/layoutPattern)とトリミング形状(cropShape)は、
+ * ページ構成画面の保存時に別々のAPIリクエストとして並行して更新されうる。
+ * @DynamicUpdateがないと、Hibernateは変更していない列も含めて行全体をUPDATEするため、
+ * 片方のリクエストが先に読み込んだ古い値でもう片方の更新を上書きしてしまう
+ * (例: クロップ形状が反映されない、つなげたはずのページが1枚ずつに戻る)。
+ * 変更された列だけをUPDATEすることで、この競合を防ぐ。
+ */
 @Getter
 @Setter
 @Entity
+@DynamicUpdate
 @Table(name = "photos")
 public class Photo {
 
