@@ -3,9 +3,14 @@ build/
 !gradle/wrapper/gradle-wrapper.jar
 
 # ユーザーがアップロードした写真・生成された動画は実行時データのため管理しない。
-# storage/bgms/ 等のシード音源(Flywayのseedデータが参照する)は追跡対象として残す。
+# storage/masks/, storage/theme-assets/ 等の自作シード素材は追跡対象として残す。
 storage/projects/
 storage/videos/
+
+# storage/bgms/の音源は配布元(DOVA-SYNDROME・甘茶の音楽工房)の利用規約で
+# 音声ファイル自体の再配布・2次配布が禁止されているため、リポジトリには含めない。
+# セットアップ手順(README参照)に従い、各自でダウンロードして配置する。
+storage/bgms/*.mp3
 
 *.log
 .idea/
